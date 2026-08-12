@@ -38,7 +38,7 @@ Each provider must classify data as:
 - Mac App Store through `mas`: implemented for read-only App Store application inventory when `mas` is available.
 - Finder basics: implemented for read-only stable preference inventory through `defaults read`.
 - Terminal basics: implemented for read-only shell metadata and shell config-file metadata with secret-like values redacted.
-- iCloud state detection
+- iCloud state detection: implemented for read-only status metadata and required-user-action reporting without authentication capture.
 - Safari bookmarks/configuration
 - Chrome bookmarks
 - Firefox bookmarks
@@ -67,15 +67,16 @@ Terminal providers must refuse or redact likely secrets by default.
 
 ## Current Snapshot Behavior
 
-`mimicry snapshot` currently writes five non-mutating sections:
+`mimicry snapshot` currently writes six non-mutating sections:
 
 - `environment`
 - `homebrew`
 - `app-store`
 - `finder`
 - `terminal`
+- `icloud`
 
-Homebrew absence, `mas` absence, unreadable Finder preferences, unreadable Terminal files, and Terminal files containing secret-like values are represented as warnings or absent/redacted values inside the relevant section. No current provider installs, removes, upgrades, signs in, writes preferences, edits shell files, or changes system settings during snapshot.
+Homebrew absence, `mas` absence, unreadable Finder preferences, unreadable Terminal files, Terminal files containing secret-like values, and iCloud states requiring user action are represented as warnings or absent/redacted/reviewable values inside the relevant section. No current provider installs, removes, upgrades, signs in, writes preferences, edits shell files, reads synced document contents, or changes system settings during snapshot.
 
 ## Finder Preferences
 
@@ -88,3 +89,9 @@ Missing individual defaults are represented as absent values rather than failure
 The Terminal provider captures shell path/name and terminal environment metadata from a small allowlist: `SHELL`, `TERM`, and `TERM_PROGRAM`. It reviews common shell configuration file locations such as `.zshrc`, `.zprofile`, `.bashrc`, `.profile`, and fish config, but stores only metadata: path, display name, status, line count, secret finding count, and matching secret-rule IDs.
 
 Shell configuration contents are not stored. Files with private-key markers, token/password assignments, AWS access keys, or bearer-token-like values are marked `potentiallySensitive` and redacted.
+
+## iCloud Metadata
+
+The iCloud provider captures local status metadata only: capability state, whether the expected iCloud Drive container path exists, and an explicit marker that authentication state is excluded. Missing local metadata is represented as `requiresUserAction`.
+
+The provider does not read iCloud account databases, sync databases, document contents, tokens, sessions, cookies, Keychain items, or credentials.

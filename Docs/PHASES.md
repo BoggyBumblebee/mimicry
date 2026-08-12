@@ -73,7 +73,7 @@ Exit criteria:
 
 ## Phase 3: Finder, Terminal, iCloud
 
-Status: In progress. Read-only Finder inventory, Terminal metadata inventory, and shell secret scanning are implemented; iCloud and inspection detail are still pending.
+Status: In progress. Read-only Finder inventory, Terminal metadata inventory, shell secret scanning, and iCloud status metadata are implemented; inspection detail is still pending.
 
 Goal: cover the first user-visible macOS configuration areas.
 

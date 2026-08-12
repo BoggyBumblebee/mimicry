@@ -40,6 +40,7 @@ Mimicry currently writes these initial sections into `snapshot.json`:
 - `app-store`: `mas` availability and App Store application inventory when `mas list` is available.
 - `finder`: stable Finder preferences captured with `defaults read`, including absent values where individual defaults are not set.
 - `terminal`: shell metadata and reviewed shell configuration file metadata, with secret-like files marked redacted and without storing shell file contents.
+- `icloud`: local iCloud status metadata, required-user-action state, and an explicit marker that authentication state is excluded.
 
 These sections are read-only inventory. They do not perform installs, upgrades, sign-ins, preference writes, or other system mutation.
 

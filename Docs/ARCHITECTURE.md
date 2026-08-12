@@ -39,7 +39,7 @@ Core responsibilities:
 
 `MacCapabilitiesDetector` is the read-only diagnostics entry point. It uses `ProcessCommandRunner` in production and `FakeCommandRunner` in tests so command-probe behavior remains covered without running real system commands in unit tests.
 
-`MimicrySnapshotBuilder` combines detected capabilities with the first read-only providers: environment, Homebrew, App Store, Finder, and Terminal. It writes the resulting snapshot through `MimicryPackageStore` so CLI-created packages use the same package format as tests and future app workflows.
+`MimicrySnapshotBuilder` combines detected capabilities with the first read-only providers: environment, Homebrew, App Store, Finder, Terminal, and iCloud. It writes the resulting snapshot through `MimicryPackageStore` so CLI-created packages use the same package format as tests and future app workflows.
 
 App responsibilities:
 
@@ -94,6 +94,10 @@ The first Phase 3 slice adds read-only Finder preference inventory. It uses the 
 ## Phase 3 Terminal Slice
 
 The Terminal slice adds shell metadata and reviewed shell configuration file metadata. It does not store shell file contents. A reusable secret scanner checks known shell profile files for private-key markers, token/password assignments, AWS access keys, and bearer tokens; files with secret-like findings are marked as redacted with rule IDs and finding counts only.
+
+## Phase 3 iCloud Slice
+
+The iCloud slice adds read-only status metadata from local capability state and the presence of the iCloud Drive container. It records whether user action is required and explicitly marks authentication state as excluded; it does not inspect account databases, tokens, sessions, synced documents, or credentials.
 
 ## Existing Project Context
 

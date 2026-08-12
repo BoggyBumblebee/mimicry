@@ -76,6 +76,10 @@ Reasons to avoid a helper in the MVP:
 
 Terminal shell configuration is treated as potentially sensitive by default. Mimicry does not store shell profile contents in normal snapshot sections. It records file metadata only and marks files as redacted when the secret scanner finds private-key markers, token/password assignments, AWS access keys, or bearer-token-like values.
 
+## iCloud Authentication Handling
+
+iCloud is treated as user-action-only for authentication and sync state. Mimicry records local status metadata and whether the expected iCloud Drive container is present, but it does not read iCloud account databases, sync databases, document contents, Keychain items, tokens, sessions, cookies, or credentials.
+
 When a privileged helper becomes necessary, it should use the modern Service Management model with helper resources inside the app bundle, registered through `SMAppService`, and controlled through System Settings approval. The helper must expose a narrow XPC API, never accept raw shell strings, log every privileged action, and be optional unless the selected provider requires it.
 
 Candidate post-MVP helper use cases:

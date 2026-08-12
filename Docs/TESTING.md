@@ -56,11 +56,13 @@ The total must stay above 80%, preferably with meaningful headroom.
 - Finder configuration discovery and absent-preference handling
 - browser bookmark parsing
 - Terminal configuration metadata and secret-like shell value redaction
+- iCloud status metadata and authentication-state exclusion
 - provider registry lookup and ordering
 - capability model defaults
 - capability detector command-output parsing with fake runners
 - provider lifecycle methods that intentionally defer apply behavior to later phases
 - secret scanner rules for private keys, token/password assignments, AWS access keys, and bearer tokens
+- required-user-action behavior for providers that cannot apply authentication or account state
 
 ## CLI Tests
 
