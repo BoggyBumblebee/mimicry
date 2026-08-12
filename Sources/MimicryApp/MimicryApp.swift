@@ -7,9 +7,6 @@ struct MimicryApp: App {
         WindowGroup {
             RootView()
         }
-        .commands {
-            CommandGroup(replacing: .newItem) {}
-        }
     }
 }
 

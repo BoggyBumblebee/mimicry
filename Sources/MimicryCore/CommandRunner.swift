@@ -9,7 +9,9 @@ public protocol CommandRunner: Sendable {
 }
 
 public struct ProcessCommandRunner: CommandRunner {
-    public init() {}
+    public init() {
+        // Stateless runner; public initializer exposes it outside MimicryCore.
+    }
 
     public func run(
         executable: URL,

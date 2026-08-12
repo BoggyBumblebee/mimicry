@@ -6,26 +6,34 @@ final class MimicryCLISmokeTests: XCTestCase {
     func testDoctorOutputRendersCapabilityFindingsWithoutMutatingSystemState() {
         let output = MimicryCLIResponses.doctor(
             capabilities: MacCapabilities(
-                macOSVersion: "Version 26.0",
-                architecture: .arm64,
-                hardwareModel: "MacBookPro18,3",
-                hostname: "reference-mac.local",
-                username: "cmb",
-                hasAdministratorPrivileges: true,
-                fileVaultState: .enabled,
-                sipState: .enabled,
-                hasCommandLineTools: true,
-                xcodeVersion: "Xcode 26.0",
-                homebrew: HomebrewCapability(
-                    isInstalled: true,
-                    prefix: "/opt/homebrew",
-                    version: "Homebrew 5.0.0",
-                    architecture: .arm64
+                environment: MacEnvironment(
+                    macOSVersion: "Version 26.0",
+                    architecture: .arm64,
+                    hardwareModel: "MacBookPro18,3",
+                    hostname: "reference-mac.local",
+                    username: "cmb"
                 ),
-                hasMAS: false,
-                iCloudState: .requiresUserAction,
-                appStoreState: .available,
-                managementState: .unknown
+                security: MacSecurityCapabilities(
+                    hasAdministratorPrivileges: true,
+                    fileVaultState: .enabled,
+                    sipState: .enabled
+                ),
+                tools: MacToolCapabilities(
+                    hasCommandLineTools: true,
+                    xcodeVersion: "Xcode 26.0",
+                    homebrew: HomebrewCapability(
+                        isInstalled: true,
+                        prefix: "/opt/homebrew",
+                        version: "Homebrew 5.0.0",
+                        architecture: .arm64
+                    ),
+                    hasMAS: false
+                ),
+                services: MacServiceCapabilities(
+                    iCloudState: .requiresUserAction,
+                    appStoreState: .available,
+                    managementState: .unknown
+                ),
             )
         )
 

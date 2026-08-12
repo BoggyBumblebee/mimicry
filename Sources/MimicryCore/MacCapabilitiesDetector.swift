@@ -28,9 +28,12 @@ public struct MacCapabilitySystemInfo: Equatable, Sendable {
         self.appStoreApplicationExists = appStoreApplicationExists
     }
 
-    public static func current(fileManager: FileManager = .default) -> MacCapabilitySystemInfo {
+    public static func current(
+        fileManager: FileManager = .default,
+        paths: MacCapabilityPaths = .macOSDefault
+    ) -> MacCapabilitySystemInfo {
         let homeDirectory = fileManager.homeDirectoryForCurrentUser
-        let iCloudDocumentsPath = homeDirectory.appendingPathComponent("Library/Mobile Documents").path
+        let iCloudDocumentsPath = paths.applications.iCloudDocumentsURL(relativeTo: homeDirectory).path
 
         return MacCapabilitySystemInfo(
             macOSVersion: ProcessInfo.processInfo.operatingSystemVersionString,
@@ -39,9 +42,14 @@ public struct MacCapabilitySystemInfo: Equatable, Sendable {
             hostname: ProcessInfo.processInfo.hostName,
             username: NSUserName(),
             iCloudDocumentsDirectoryExists: fileManager.fileExists(atPath: iCloudDocumentsPath),
-            appStoreApplicationExists: fileManager.fileExists(atPath: "/System/Applications/App Store.app")
-                || fileManager.fileExists(atPath: "/Applications/App Store.app")
+            appStoreApplicationExists: paths.applications.appStoreApplicationLocations.contains { url in
+                fileManager.fileExists(atPath: url.path)
+            }
         )
+    }
+
+    public static func current(fileManager: FileManager = .default) -> MacCapabilitySystemInfo {
+        current(fileManager: fileManager, paths: .macOSDefault)
     }
 
     private static func currentArchitecture() -> MacArchitecture {
@@ -72,60 +80,91 @@ public struct MacCapabilitySystemInfo: Equatable, Sendable {
 
 public struct MacCapabilitiesDetector: Sendable {
     private let runner: CommandRunner
+    private let paths: MacCapabilityPaths
     private let systemInfoProvider: @Sendable () -> MacCapabilitySystemInfo
 
     public init(
         runner: CommandRunner = ProcessCommandRunner(),
-        systemInfoProvider: @escaping @Sendable () -> MacCapabilitySystemInfo = { .current() }
+        paths: MacCapabilityPaths = .macOSDefault
     ) {
         self.runner = runner
+        self.paths = paths
+        self.systemInfoProvider = { .current(paths: paths) }
+    }
+
+    public init(
+        runner: CommandRunner = ProcessCommandRunner(),
+        paths: MacCapabilityPaths,
+        systemInfoProvider: @escaping @Sendable () -> MacCapabilitySystemInfo
+    ) {
+        self.runner = runner
+        self.paths = paths
         self.systemInfoProvider = systemInfoProvider
+    }
+
+    public init(
+        runner: CommandRunner = ProcessCommandRunner(),
+        systemInfoProvider: @escaping @Sendable () -> MacCapabilitySystemInfo
+    ) {
+        self.init(
+            runner: runner,
+            paths: .macOSDefault,
+            systemInfoProvider: systemInfoProvider
+        )
     }
 
     public func detect() async -> MacCapabilities {
         let systemInfo = systemInfoProvider()
 
         let administratorPrivileges = await detectAdministratorPrivileges()
-        let commandLineTools = await commandSucceeds("/usr/bin/xcode-select", ["-p"])
+        let commandLineTools = await commandSucceeds(paths.developerTools.xcodeSelect, ["-p"])
         let xcodeVersion = await detectXcodeVersion()
         let homebrew = await detectHomebrew()
-        let mas = await commandSucceeds("/usr/bin/which", ["mas"])
+        let mas = await commandSucceeds(paths.shellTools.which, ["mas"])
         let sipState = await detectSIPState()
         let fileVaultState = await detectFileVaultState()
         let managementState = await detectManagementState()
 
         return MacCapabilities(
-            macOSVersion: systemInfo.macOSVersion,
-            architecture: systemInfo.architecture,
-            hardwareModel: systemInfo.hardwareModel,
-            hostname: systemInfo.hostname,
-            username: systemInfo.username,
-            hasAdministratorPrivileges: administratorPrivileges,
-            fileVaultState: fileVaultState,
-            sipState: sipState,
-            hasCommandLineTools: commandLineTools,
-            xcodeVersion: xcodeVersion,
-            homebrew: homebrew,
-            hasMAS: mas,
-            iCloudState: systemInfo.iCloudDocumentsDirectoryExists ? .available : .requiresUserAction,
-            appStoreState: systemInfo.appStoreApplicationExists ? .available : .unknown,
-            managementState: managementState
+            environment: MacEnvironment(
+                macOSVersion: systemInfo.macOSVersion,
+                architecture: systemInfo.architecture,
+                hardwareModel: systemInfo.hardwareModel,
+                hostname: systemInfo.hostname,
+                username: systemInfo.username
+            ),
+            security: MacSecurityCapabilities(
+                hasAdministratorPrivileges: administratorPrivileges,
+                fileVaultState: fileVaultState,
+                sipState: sipState
+            ),
+            tools: MacToolCapabilities(
+                hasCommandLineTools: commandLineTools,
+                xcodeVersion: xcodeVersion,
+                homebrew: homebrew,
+                hasMAS: mas
+            ),
+            services: MacServiceCapabilities(
+                iCloudState: systemInfo.iCloudDocumentsDirectoryExists ? .available : .requiresUserAction,
+                appStoreState: systemInfo.appStoreApplicationExists ? .available : .unknown,
+                managementState: managementState
+            )
         )
     }
 
     private func detectAdministratorPrivileges() async -> Bool {
-        let result = await run("/usr/bin/id", ["-Gn"])
+        let result = await run(paths.shellTools.id, ["-Gn"])
         guard result.exitCode == 0 else {
             return false
         }
 
         return result.standardOutput
-            .split(whereSeparator: \.isWhitespace)
+            .split(whereSeparator: { $0.isWhitespace })
             .contains("admin")
     }
 
     private func detectXcodeVersion() async -> String? {
-        let result = await run("/usr/bin/xcodebuild", ["-version"])
+        let result = await run(paths.developerTools.xcodebuild, ["-version"])
         guard result.exitCode == 0 else {
             return nil
         }
@@ -138,13 +177,13 @@ public struct MacCapabilitiesDetector: Sendable {
     }
 
     private func detectHomebrew() async -> HomebrewCapability {
-        let whichResult = await run("/usr/bin/which", ["brew"])
+        let whichResult = await run(paths.shellTools.which, ["brew"])
         guard whichResult.exitCode == 0 else {
             return HomebrewCapability()
         }
 
-        let prefixResult = await run("/usr/bin/env", ["brew", "--prefix"])
-        let versionResult = await run("/usr/bin/env", ["brew", "--version"])
+        let prefixResult = await run(paths.shellTools.env, ["brew", "--prefix"])
+        let versionResult = await run(paths.shellTools.env, ["brew", "--version"])
         let prefix = prefixResult.exitCode == 0 ? prefixResult.standardOutput.trimmedNilIfEmpty : nil
         let version = versionResult.exitCode == 0
             ? versionResult.standardOutput.split(separator: "\n").first.map(String.init)?.trimmedNilIfEmpty
@@ -159,7 +198,7 @@ public struct MacCapabilitiesDetector: Sendable {
     }
 
     private func detectSIPState() async -> CapabilityState {
-        let result = await run("/usr/bin/csrutil", ["status"])
+        let result = await run(paths.securityTools.csrutil, ["status"])
         guard result.exitCode == 0 else {
             return .unknown
         }
@@ -175,7 +214,7 @@ public struct MacCapabilitiesDetector: Sendable {
     }
 
     private func detectFileVaultState() async -> CapabilityState {
-        let result = await run("/usr/bin/fdesetup", ["status"])
+        let result = await run(paths.securityTools.fdesetup, ["status"])
         guard result.exitCode == 0 else {
             return .unknown
         }
@@ -191,7 +230,7 @@ public struct MacCapabilitiesDetector: Sendable {
     }
 
     private func detectManagementState() async -> CapabilityState {
-        let result = await run("/usr/bin/profiles", ["status", "-type", "enrollment"])
+        let result = await run(paths.securityTools.profiles, ["status", "-type", "enrollment"])
         guard result.exitCode == 0 else {
             return .unknown
         }
@@ -206,20 +245,20 @@ public struct MacCapabilitiesDetector: Sendable {
         return .unknown
     }
 
-    private func commandSucceeds(_ executable: String, _ arguments: [String]) async -> Bool {
+    private func commandSucceeds(_ executable: URL, _ arguments: [String]) async -> Bool {
         await run(executable, arguments).exitCode == 0
     }
 
-    private func run(_ executable: String, _ arguments: [String]) async -> CommandResult {
+    private func run(_ executable: URL, _ arguments: [String]) async -> CommandResult {
         do {
             return try await runner.run(
-                executable: URL(fileURLWithPath: executable),
+                executable: executable,
                 arguments: arguments,
                 environment: nil
             )
         } catch {
             return CommandResult(
-                executable: executable,
+                executable: executable.path,
                 arguments: arguments,
                 exitCode: 1,
                 standardError: String(describing: error)
@@ -229,12 +268,146 @@ public struct MacCapabilitiesDetector: Sendable {
 
     private func homebrewArchitecture(prefix: String?) -> MacArchitecture {
         switch prefix {
-        case "/opt/homebrew":
+        case paths.homebrewPrefixes.appleSilicon.path:
             .arm64
-        case "/usr/local":
+        case paths.homebrewPrefixes.intel.path:
             .x86_64
         default:
             .unknown
+        }
+    }
+}
+
+public struct MacCapabilityPaths: Equatable, Sendable {
+    public var developerTools: MacCapabilityDeveloperToolPaths
+    public var shellTools: MacCapabilityShellToolPaths
+    public var securityTools: MacCapabilitySecurityToolPaths
+    public var applications: MacCapabilityApplicationPaths
+    public var homebrewPrefixes: MacCapabilityHomebrewPrefixes
+
+    public init(
+        developerTools: MacCapabilityDeveloperToolPaths = .macOSDefault,
+        shellTools: MacCapabilityShellToolPaths = .macOSDefault,
+        securityTools: MacCapabilitySecurityToolPaths = .macOSDefault,
+        applications: MacCapabilityApplicationPaths = .macOSDefault,
+        homebrewPrefixes: MacCapabilityHomebrewPrefixes = .macOSDefault
+    ) {
+        self.developerTools = developerTools
+        self.shellTools = shellTools
+        self.securityTools = securityTools
+        self.applications = applications
+        self.homebrewPrefixes = homebrewPrefixes
+    }
+
+    public static let macOSDefault = MacCapabilityPaths()
+}
+
+public struct MacCapabilityDeveloperToolPaths: Equatable, Sendable {
+    public var xcodeSelect: URL
+    public var xcodebuild: URL
+
+    public init(
+        xcodeSelect: URL? = nil,
+        xcodebuild: URL? = nil
+    ) {
+        self.xcodeSelect = xcodeSelect ?? MacCapabilityDefaultPathFactory.usrBin("xcode-select")
+        self.xcodebuild = xcodebuild ?? MacCapabilityDefaultPathFactory.usrBin("xcodebuild")
+    }
+
+    public static let macOSDefault = MacCapabilityDeveloperToolPaths()
+}
+
+public struct MacCapabilityShellToolPaths: Equatable, Sendable {
+    public var id: URL
+    public var which: URL
+    public var env: URL
+
+    public init(
+        id: URL? = nil,
+        which: URL? = nil,
+        env: URL? = nil
+    ) {
+        self.id = id ?? MacCapabilityDefaultPathFactory.usrBin("id")
+        self.which = which ?? MacCapabilityDefaultPathFactory.usrBin("which")
+        self.env = env ?? MacCapabilityDefaultPathFactory.usrBin("env")
+    }
+
+    public static let macOSDefault = MacCapabilityShellToolPaths()
+}
+
+public struct MacCapabilitySecurityToolPaths: Equatable, Sendable {
+    public var csrutil: URL
+    public var fdesetup: URL
+    public var profiles: URL
+
+    public init(
+        csrutil: URL? = nil,
+        fdesetup: URL? = nil,
+        profiles: URL? = nil
+    ) {
+        self.csrutil = csrutil ?? MacCapabilityDefaultPathFactory.usrBin("csrutil")
+        self.fdesetup = fdesetup ?? MacCapabilityDefaultPathFactory.usrBin("fdesetup")
+        self.profiles = profiles ?? MacCapabilityDefaultPathFactory.usrBin("profiles")
+    }
+
+    public static let macOSDefault = MacCapabilitySecurityToolPaths()
+}
+
+public struct MacCapabilityApplicationPaths: Equatable, Sendable {
+    public var iCloudDocumentsPathComponents: [String]
+    public var appStoreApplicationLocations: [URL]
+
+    public init(
+        iCloudDocumentsPathComponents: [String] = ["Library", "Mobile Documents"],
+        appStoreApplicationLocations: [URL]? = nil
+    ) {
+        self.iCloudDocumentsPathComponents = iCloudDocumentsPathComponents
+        self.appStoreApplicationLocations = appStoreApplicationLocations ?? [
+            MacCapabilityDefaultPathFactory.systemApplication("App Store.app"),
+            MacCapabilityDefaultPathFactory.userApplication("App Store.app")
+        ]
+    }
+
+    public func iCloudDocumentsURL(relativeTo homeDirectory: URL) -> URL {
+        iCloudDocumentsPathComponents.reduce(homeDirectory) { url, component in
+            url.appendingPathComponent(component)
+        }
+    }
+
+    public static let macOSDefault = MacCapabilityApplicationPaths()
+}
+
+public struct MacCapabilityHomebrewPrefixes: Equatable, Sendable {
+    public var appleSilicon: URL
+    public var intel: URL
+
+    public init(
+        appleSilicon: URL? = nil,
+        intel: URL? = nil
+    ) {
+        self.appleSilicon = appleSilicon ?? MacCapabilityDefaultPathFactory.absoluteURL(["opt", "homebrew"])
+        self.intel = intel ?? MacCapabilityDefaultPathFactory.absoluteURL(["usr", "local"])
+    }
+
+    public static let macOSDefault = MacCapabilityHomebrewPrefixes()
+}
+
+private enum MacCapabilityDefaultPathFactory {
+    static func usrBin(_ executableName: String) -> URL {
+        absoluteURL(["usr", "bin", executableName])
+    }
+
+    static func systemApplication(_ applicationName: String) -> URL {
+        absoluteURL(["System", "Applications", applicationName])
+    }
+
+    static func userApplication(_ applicationName: String) -> URL {
+        absoluteURL(["Applications", applicationName])
+    }
+
+    static func absoluteURL(_ components: [String]) -> URL {
+        components.reduce(URL(fileURLWithPath: NSOpenStepRootDirectory(), isDirectory: true)) { url, component in
+            url.appendingPathComponent(component)
         }
     }
 }

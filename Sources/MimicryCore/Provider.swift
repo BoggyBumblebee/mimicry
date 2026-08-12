@@ -51,7 +51,9 @@ public struct SnapshotContext: Sendable {
 }
 
 public struct ValidationContext: Sendable {
-    public init() {}
+    public init() {
+        // Reserved for future validation options; currently stateless.
+    }
 }
 
 public struct ApplyContext: Sendable {
