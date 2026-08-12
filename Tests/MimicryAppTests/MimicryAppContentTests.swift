@@ -114,6 +114,9 @@ final class MimicryAppContentTests: XCTestCase {
                 planApplyPackage: { url in
                     Self.sampleApplyPlanSummary(url: url)
                 },
+                confirmedApplyPackage: { url in
+                    Self.sampleConfirmedApplySummary(packageURL: url)
+                },
                 exportBrowserBookmarks: { packageURL, outputURL in
                     Self.sampleBrowserBookmarkExportSummary(packageURL: packageURL, outputURL: outputURL)
                 },
@@ -148,6 +151,7 @@ final class MimicryAppContentTests: XCTestCase {
             openPackage: { _ in AppPackageSummary(package: Self.samplePackage()) },
             comparePackage: { _ in Self.sampleCompareSummary() },
             planApplyPackage: { _ in Self.sampleApplyPlanSummary() },
+            confirmedApplyPackage: { url in Self.sampleConfirmedApplySummary(packageURL: url) },
             exportBrowserBookmarks: { packageURL, outputURL in
                 Self.sampleBrowserBookmarkExportSummary(packageURL: packageURL, outputURL: outputURL)
             },
@@ -176,6 +180,7 @@ final class MimicryAppContentTests: XCTestCase {
                 openPackage: { _ in AppPackageSummary(package: Self.samplePackage()) },
                 comparePackage: { url in Self.sampleCompareSummary(url: url) },
                 planApplyPackage: { url in Self.sampleApplyPlanSummary(url: url) },
+                confirmedApplyPackage: { url in Self.sampleConfirmedApplySummary(packageURL: url) },
                 exportBrowserBookmarks: { packageURL, outputURL in
                     Self.sampleBrowserBookmarkExportSummary(packageURL: packageURL, outputURL: outputURL)
                 },
@@ -214,6 +219,7 @@ final class MimicryAppContentTests: XCTestCase {
             openPackage: { _ in throw AppTestError.packageFailed },
             comparePackage: { _ in Self.sampleCompareSummary() },
             planApplyPackage: { _ in Self.sampleApplyPlanSummary() },
+            confirmedApplyPackage: { url in Self.sampleConfirmedApplySummary(packageURL: url) },
             exportBrowserBookmarks: { packageURL, outputURL in
                 Self.sampleBrowserBookmarkExportSummary(packageURL: packageURL, outputURL: outputURL)
             },
@@ -250,6 +256,7 @@ final class MimicryAppContentTests: XCTestCase {
                 openPackage: { url in AppPackageSummary(package: Self.samplePackage(url: url)) },
                 comparePackage: { url in Self.sampleCompareSummary(url: url) },
                 planApplyPackage: { url in Self.sampleApplyPlanSummary(url: url) },
+                confirmedApplyPackage: { url in Self.sampleConfirmedApplySummary(packageURL: url) },
                 exportBrowserBookmarks: { packageURL, outputURL in
                     Self.sampleBrowserBookmarkExportSummary(packageURL: packageURL, outputURL: outputURL)
                 },
@@ -290,6 +297,7 @@ final class MimicryAppContentTests: XCTestCase {
             openPackage: { url in AppPackageSummary(package: Self.samplePackage(url: url)) },
             comparePackage: { _ in throw AppTestError.compareFailed },
             planApplyPackage: { _ in Self.sampleApplyPlanSummary() },
+            confirmedApplyPackage: { url in Self.sampleConfirmedApplySummary(packageURL: url) },
             exportBrowserBookmarks: { packageURL, outputURL in
                 Self.sampleBrowserBookmarkExportSummary(packageURL: packageURL, outputURL: outputURL)
             },
@@ -326,6 +334,7 @@ final class MimicryAppContentTests: XCTestCase {
                 openPackage: { url in AppPackageSummary(package: Self.samplePackage(url: url)) },
                 comparePackage: { url in Self.sampleCompareSummary(url: url) },
                 planApplyPackage: { url in Self.sampleApplyPlanSummary(url: url) },
+                confirmedApplyPackage: { url in Self.sampleConfirmedApplySummary(packageURL: url) },
                 exportBrowserBookmarks: { packageURL, outputURL in
                     Self.sampleBrowserBookmarkExportSummary(packageURL: packageURL, outputURL: outputURL)
                 },
@@ -371,6 +380,7 @@ final class MimicryAppContentTests: XCTestCase {
             openPackage: { url in AppPackageSummary(package: Self.samplePackage(url: url)) },
             comparePackage: { url in Self.sampleCompareSummary(url: url) },
             planApplyPackage: { _ in throw AppTestError.applyFailed },
+            confirmedApplyPackage: { url in Self.sampleConfirmedApplySummary(packageURL: url) },
             exportBrowserBookmarks: { packageURL, outputURL in
                 Self.sampleBrowserBookmarkExportSummary(packageURL: packageURL, outputURL: outputURL)
             },
@@ -381,6 +391,122 @@ final class MimicryAppContentTests: XCTestCase {
         await model.planApplyForCurrentPackage()
 
         XCTAssertEqual(model.applyPlanState, .failed("Apply test failure"))
+    }
+
+    func testConfirmedApplyRequiresOpenPackage() async {
+        let model = Self.makeModel()
+
+        await model.confirmedApplyForCurrentPackage()
+
+        XCTAssertEqual(model.confirmedApplyState, .failed("Open a package before confirmed apply."))
+    }
+
+    func testConfirmedApplyRequiresDryRun() async {
+        let model = Self.makeModel(
+            runtime: AppRuntime(
+                createSnapshot: { url in
+                    AppSnapshotSummary(
+                        url: url,
+                        sectionCount: 0,
+                        itemCount: 0,
+                        warningCount: 0,
+                        createdAt: Date(timeIntervalSince1970: 0),
+                        source: "unused"
+                    )
+                },
+                openPackage: { url in AppPackageSummary(package: Self.samplePackage(url: url)) },
+                comparePackage: { url in Self.sampleCompareSummary(url: url) },
+                planApplyPackage: { url in Self.sampleApplyPlanSummary(url: url) },
+                confirmedApplyPackage: { url in Self.sampleConfirmedApplySummary(packageURL: url) },
+                exportBrowserBookmarks: { packageURL, outputURL in
+                    Self.sampleBrowserBookmarkExportSummary(packageURL: packageURL, outputURL: outputURL)
+                },
+                detectCapabilities: { Self.sampleCapabilities }
+            )
+        )
+
+        await model.openPackage(at: URL(fileURLWithPath: "/tmp/opened.mimicry"))
+        await model.confirmedApplyForCurrentPackage()
+
+        XCTAssertEqual(model.confirmedApplyState, .failed("Run a dry run before confirmed apply."))
+    }
+
+    func testConfirmedApplySummarizesFinderSafeResults() async {
+        let model = Self.makeModel(
+            runtime: AppRuntime(
+                createSnapshot: { url in
+                    AppSnapshotSummary(
+                        url: url,
+                        sectionCount: 0,
+                        itemCount: 0,
+                        warningCount: 0,
+                        createdAt: Date(timeIntervalSince1970: 0),
+                        source: "unused"
+                    )
+                },
+                openPackage: { url in AppPackageSummary(package: Self.samplePackage(url: url)) },
+                comparePackage: { url in Self.sampleCompareSummary(url: url) },
+                planApplyPackage: { url in Self.sampleApplyPlanSummary(url: url) },
+                confirmedApplyPackage: { url in Self.sampleConfirmedApplySummary(packageURL: url) },
+                exportBrowserBookmarks: { packageURL, outputURL in
+                    Self.sampleBrowserBookmarkExportSummary(packageURL: packageURL, outputURL: outputURL)
+                },
+                detectCapabilities: { Self.sampleCapabilities }
+            ),
+            historyStore: PackageHistoryStore(
+                load: { [] },
+                record: { [RecentPackage(url: $0)] }
+            )
+        )
+
+        await model.openPackage(at: URL(fileURLWithPath: "/tmp/opened.mimicry"))
+        await model.planApplyForCurrentPackage()
+        await model.confirmedApplyForCurrentPackage()
+
+        XCTAssertEqual(
+            model.confirmedApplyState,
+            .succeeded(Self.sampleConfirmedApplySummary(packageURL: URL(fileURLWithPath: "/tmp/opened.mimicry")))
+        )
+
+        guard case let .succeeded(summary) = model.confirmedApplyState else {
+            return XCTFail("Expected confirmed apply to succeed.")
+        }
+
+        XCTAssertEqual(summary.backupURL, URL(fileURLWithPath: "/tmp/finder-backup.json"))
+        XCTAssertEqual(summary.resultCount, 2)
+        XCTAssertEqual(summary.appliedCount, 1)
+        XCTAssertEqual(summary.warningCount, 1)
+        XCTAssertEqual(summary.skippedCount, 0)
+        XCTAssertEqual(summary.failedCount, 0)
+    }
+
+    func testConfirmedApplyReportsFailure() async {
+        let model = Self.makeModel(runtime: AppRuntime(
+            createSnapshot: { url in
+                AppSnapshotSummary(
+                    url: url,
+                    sectionCount: 0,
+                    itemCount: 0,
+                    warningCount: 0,
+                    createdAt: Date(timeIntervalSince1970: 0),
+                    source: "unused"
+                )
+            },
+            openPackage: { url in AppPackageSummary(package: Self.samplePackage(url: url)) },
+            comparePackage: { url in Self.sampleCompareSummary(url: url) },
+            planApplyPackage: { url in Self.sampleApplyPlanSummary(url: url) },
+            confirmedApplyPackage: { _ in throw AppTestError.confirmedApplyFailed },
+            exportBrowserBookmarks: { packageURL, outputURL in
+                Self.sampleBrowserBookmarkExportSummary(packageURL: packageURL, outputURL: outputURL)
+            },
+            detectCapabilities: { Self.sampleCapabilities }
+        ))
+
+        await model.openPackage(at: URL(fileURLWithPath: "/tmp/opened.mimicry"))
+        await model.planApplyForCurrentPackage()
+        await model.confirmedApplyForCurrentPackage()
+
+        XCTAssertEqual(model.confirmedApplyState, .failed("Confirmed apply test failure"))
     }
 
     func testBrowserBookmarkExportRequiresOpenPackage() async {
@@ -407,6 +533,7 @@ final class MimicryAppContentTests: XCTestCase {
                 openPackage: { url in AppPackageSummary(package: Self.samplePackage(url: url)) },
                 comparePackage: { url in Self.sampleCompareSummary(url: url) },
                 planApplyPackage: { url in Self.sampleApplyPlanSummary(url: url) },
+                confirmedApplyPackage: { url in Self.sampleConfirmedApplySummary(packageURL: url) },
                 exportBrowserBookmarks: { packageURL, outputURL in
                     Self.sampleBrowserBookmarkExportSummary(packageURL: packageURL, outputURL: outputURL)
                 },
@@ -445,6 +572,7 @@ final class MimicryAppContentTests: XCTestCase {
             openPackage: { url in AppPackageSummary(package: Self.samplePackage(url: url)) },
             comparePackage: { url in Self.sampleCompareSummary(url: url) },
             planApplyPackage: { url in Self.sampleApplyPlanSummary(url: url) },
+            confirmedApplyPackage: { url in Self.sampleConfirmedApplySummary(packageURL: url) },
             exportBrowserBookmarks: { _, _ in throw AppTestError.browserExportFailed },
             detectCapabilities: { Self.sampleCapabilities }
         ))
@@ -470,6 +598,7 @@ final class MimicryAppContentTests: XCTestCase {
             openPackage: { _ in AppPackageSummary(package: Self.samplePackage()) },
             comparePackage: { _ in Self.sampleCompareSummary() },
             planApplyPackage: { _ in Self.sampleApplyPlanSummary() },
+            confirmedApplyPackage: { url in Self.sampleConfirmedApplySummary(packageURL: url) },
             exportBrowserBookmarks: { packageURL, outputURL in
                 Self.sampleBrowserBookmarkExportSummary(packageURL: packageURL, outputURL: outputURL)
             },
@@ -510,6 +639,7 @@ final class MimicryAppContentTests: XCTestCase {
             openPackage: { _ in AppPackageSummary(package: samplePackage()) },
             comparePackage: { url in sampleCompareSummary(url: url) },
             planApplyPackage: { url in sampleApplyPlanSummary(url: url) },
+            confirmedApplyPackage: { url in sampleConfirmedApplySummary(packageURL: url) },
             exportBrowserBookmarks: { packageURL, outputURL in
                 sampleBrowserBookmarkExportSummary(packageURL: packageURL, outputURL: outputURL)
             },
@@ -634,6 +764,29 @@ final class MimicryAppContentTests: XCTestCase {
         )
     }
 
+    nonisolated private static func sampleConfirmedApplySummary(
+        packageURL: URL = URL(fileURLWithPath: "/tmp/opened.mimicry")
+    ) -> AppConfirmedApplySummary {
+        AppConfirmedApplySummary(
+            packageURL: packageURL,
+            summary: FinderPreferenceApplySummary(
+                backupURL: URL(fileURLWithPath: "/tmp/finder-backup.json"),
+                results: [
+                    ApplyResult(
+                        actionID: UUID(uuidString: "00000000-0000-0000-0000-000000000001")!,
+                        status: .success,
+                        message: "Applied Finder preference AppleShowAllFiles."
+                    ),
+                    ApplyResult(
+                        actionID: UUID(uuidString: "00000000-0000-0000-0000-000000000002")!,
+                        status: .warning,
+                        message: "Finder preference ShowPathbar could not be applied."
+                    )
+                ]
+            )
+        )
+    }
+
     nonisolated private static func sampleCurrentSnapshot() -> MimicrySnapshot {
         MimicrySnapshot(
             mimicryVersion: "0.1.0",
@@ -672,6 +825,7 @@ private enum AppTestError: LocalizedError {
     case packageFailed
     case compareFailed
     case applyFailed
+    case confirmedApplyFailed
     case browserExportFailed
 
     var errorDescription: String? {
@@ -684,6 +838,8 @@ private enum AppTestError: LocalizedError {
             "Compare test failure"
         case .applyFailed:
             "Apply test failure"
+        case .confirmedApplyFailed:
+            "Confirmed apply test failure"
         case .browserExportFailed:
             "Browser export test failure"
         }

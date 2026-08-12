@@ -8,6 +8,7 @@ final class AppModel: ObservableObject {
     @Published private(set) var packageState: AppCommandState<AppPackageSummary> = .idle
     @Published private(set) var compareState: AppCommandState<AppCompareSummary> = .idle
     @Published private(set) var applyPlanState: AppCommandState<AppApplyPlanSummary> = .idle
+    @Published private(set) var confirmedApplyState: AppCommandState<AppConfirmedApplySummary> = .idle
     @Published private(set) var browserBookmarkExportState: AppCommandState<AppBrowserBookmarkExportSummary> = .idle
     @Published private(set) var diagnosticsState: AppCommandState<AppDiagnosticsSummary> = .idle
     @Published private(set) var recentPackages: [RecentPackage]
@@ -33,6 +34,7 @@ final class AppModel: ObservableObject {
             packageState = .running
             compareState = .idle
             applyPlanState = .idle
+            confirmedApplyState = .idle
             browserBookmarkExportState = .idle
             do {
                 packageState = .succeeded(try await runtime.openPackage(summary.url))
@@ -49,6 +51,7 @@ final class AppModel: ObservableObject {
         packageState = .running
         compareState = .idle
         applyPlanState = .idle
+        confirmedApplyState = .idle
         browserBookmarkExportState = .idle
 
         do {
@@ -85,11 +88,31 @@ final class AppModel: ObservableObject {
         }
 
         applyPlanState = .running
+        confirmedApplyState = .idle
 
         do {
             applyPlanState = .succeeded(try await runtime.planApplyPackage(package.url))
         } catch {
             applyPlanState = .failed(error.readableMessage)
+        }
+    }
+
+    func confirmedApplyForCurrentPackage() async {
+        guard case let .succeeded(package) = packageState else {
+            confirmedApplyState = .failed("Open a package before confirmed apply.")
+            return
+        }
+        guard case let .succeeded(plan) = applyPlanState, plan.packageURL == package.url else {
+            confirmedApplyState = .failed("Run a dry run before confirmed apply.")
+            return
+        }
+
+        confirmedApplyState = .running
+
+        do {
+            confirmedApplyState = .succeeded(try await runtime.confirmedApplyPackage(package.url))
+        } catch {
+            confirmedApplyState = .failed(error.readableMessage)
         }
     }
 
@@ -139,8 +162,27 @@ struct AppRuntime: Sendable {
     var openPackage: @Sendable (URL) async throws -> AppPackageSummary
     var comparePackage: @Sendable (URL) async throws -> AppCompareSummary
     var planApplyPackage: @Sendable (URL) async throws -> AppApplyPlanSummary
+    var confirmedApplyPackage: @Sendable (URL) async throws -> AppConfirmedApplySummary
     var exportBrowserBookmarks: @Sendable (URL, URL) async throws -> AppBrowserBookmarkExportSummary
     var detectCapabilities: @Sendable () async throws -> MacCapabilities
+
+    init(
+        createSnapshot: @escaping @Sendable (URL) async throws -> AppSnapshotSummary,
+        openPackage: @escaping @Sendable (URL) async throws -> AppPackageSummary,
+        comparePackage: @escaping @Sendable (URL) async throws -> AppCompareSummary,
+        planApplyPackage: @escaping @Sendable (URL) async throws -> AppApplyPlanSummary,
+        confirmedApplyPackage: @escaping @Sendable (URL) async throws -> AppConfirmedApplySummary,
+        exportBrowserBookmarks: @escaping @Sendable (URL, URL) async throws -> AppBrowserBookmarkExportSummary,
+        detectCapabilities: @escaping @Sendable () async throws -> MacCapabilities
+    ) {
+        self.createSnapshot = createSnapshot
+        self.openPackage = openPackage
+        self.comparePackage = comparePackage
+        self.planApplyPackage = planApplyPackage
+        self.confirmedApplyPackage = confirmedApplyPackage
+        self.exportBrowserBookmarks = exportBrowserBookmarks
+        self.detectCapabilities = detectCapabilities
+    }
 
     static let live = AppRuntime(
         createSnapshot: { outputURL in
@@ -162,6 +204,15 @@ struct AppRuntime: Sendable {
             let currentSnapshot = try await MimicrySnapshotBuilder().buildSnapshot().snapshot
             let plan = SnapshotApplyPlanner().plan(reference: package.snapshot, current: currentSnapshot)
             return AppApplyPlanSummary(packageURL: package.url, plan: plan)
+        },
+        confirmedApplyPackage: { packageURL in
+            let package = try MimicryPackageStore().read(from: packageURL)
+            let currentSnapshot = try await MimicrySnapshotBuilder().buildSnapshot().snapshot
+            let result = try await FinderPreferenceApplyExecutor().apply(
+                reference: package.snapshot,
+                current: currentSnapshot
+            )
+            return AppConfirmedApplySummary(packageURL: package.url, summary: result)
         },
         exportBrowserBookmarks: { packageURL, outputURL in
             let package = try MimicryPackageStore().read(from: packageURL)
@@ -408,6 +459,40 @@ struct AppBrowserBookmarkExportSummary: Equatable, Sendable {
         skippedDuplicateCount = result.summary.skippedDuplicateCount
         skippedInvalidCount = result.summary.skippedInvalidCount
         skippedUnavailableSourceCount = result.summary.skippedUnavailableSourceCount
+    }
+}
+
+struct AppConfirmedApplySummary: Equatable, Sendable {
+    var packageURL: URL
+    var backupURL: URL?
+    var resultCount: Int
+    var appliedCount: Int
+    var warningCount: Int
+    var skippedCount: Int
+    var failedCount: Int
+    var results: [AppApplyResultSummary]
+
+    init(packageURL: URL, summary: FinderPreferenceApplySummary) {
+        self.packageURL = packageURL
+        backupURL = summary.backupURL
+        resultCount = summary.results.count
+        appliedCount = summary.results.filter { $0.status == .success }.count
+        warningCount = summary.results.filter { $0.status == .warning }.count
+        skippedCount = summary.results.filter { $0.status == .skipped || $0.status == .unsupported }.count
+        failedCount = summary.results.filter { $0.status == .fatal || $0.status == .blocked }.count
+        results = summary.results.map(AppApplyResultSummary.init(result:))
+    }
+}
+
+struct AppApplyResultSummary: Equatable, Sendable, Identifiable {
+    var id: UUID
+    var status: String
+    var message: String
+
+    init(result: ApplyResult) {
+        id = result.actionID
+        status = result.status.rawValue
+        message = result.message
     }
 }
 

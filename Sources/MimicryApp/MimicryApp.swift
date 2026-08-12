@@ -221,6 +221,7 @@ private struct SnapshotView: View {
 
 private struct ApplyView: View {
     @ObservedObject var model: AppModel
+    @State private var isConfirmingApply = false
 
     var body: some View {
         TwoColumnPanels {
@@ -242,6 +243,34 @@ private struct ApplyView: View {
 
             ContentPanel(title: "Dry Run Plan", systemImage: "checklist") {
                 ApplyPlanResultView(state: model.applyPlanState)
+            }
+
+            ContentPanel(title: "Confirmed Apply", systemImage: "checkmark.shield") {
+                VStack(alignment: .leading, spacing: 14) {
+                    Button {
+                        isConfirmingApply = true
+                    } label: {
+                        Label("Apply Finder", systemImage: "checkmark.shield")
+                    }
+                    .buttonStyle(.borderedProminent)
+                    .disabled(!canConfirmedApply)
+                    .confirmationDialog(
+                        "Apply Finder-safe preferences?",
+                        isPresented: $isConfirmingApply,
+                        titleVisibility: .visible
+                    ) {
+                        Button("Apply Finder", role: .destructive) {
+                            Task {
+                                await model.confirmedApplyForCurrentPackage()
+                            }
+                        }
+                        Button("Cancel", role: .cancel) {}
+                    } message: {
+                        Text("Only explicitly safe Finder boolean and string preferences are considered. A backup is written before any change.")
+                    }
+
+                    ConfirmedApplyResultView(state: model.confirmedApplyState, canApply: canConfirmedApply)
+                }
             }
 
             ContentPanel(title: "Browser Handoff", systemImage: "safari") {
@@ -283,6 +312,20 @@ private struct ApplyView: View {
         }
 
         return currentPackageURL != nil
+    }
+
+    private var canConfirmedApply: Bool {
+        guard !model.confirmedApplyState.isRunning else {
+            return false
+        }
+        guard let currentPackageURL else {
+            return false
+        }
+        guard case let .succeeded(plan) = model.applyPlanState else {
+            return false
+        }
+
+        return plan.packageURL == currentPackageURL
     }
 
     private var currentPackageURL: URL? {
@@ -928,6 +971,81 @@ private struct BrowserBookmarkExportResultView: View {
             }
         case let .failed(message):
             FailureRow(title: "Browser export failed", detail: message)
+        }
+    }
+}
+
+private struct ConfirmedApplyResultView: View {
+    var state: AppCommandState<AppConfirmedApplySummary>
+    var canApply: Bool
+
+    var body: some View {
+        switch state {
+        case .idle:
+            EmptyStateRow(
+                title: canApply ? "Ready for confirmed apply" : "Dry run required",
+                detail: canApply
+                    ? "Finder-safe preferences can be applied with explicit confirmation."
+                    : "Open a package and run a dry run before applying Finder preferences.",
+                systemImage: canApply ? "checkmark.shield" : "shield"
+            )
+        case .running:
+            ProgressRow(title: "Applying Finder preferences", detail: "Writing only backed-up Finder-safe settings.")
+        case let .succeeded(summary):
+            VStack(alignment: .leading, spacing: 14) {
+                KeyValueList(rows: [
+                    KeyValueRow(label: "Package", value: summary.packageURL.lastPathComponent),
+                    KeyValueRow(label: "Backup", value: summary.backupURL?.lastPathComponent ?? "Not needed"),
+                    KeyValueRow(label: "Results", value: "\(summary.resultCount)"),
+                    KeyValueRow(label: "Applied", value: "\(summary.appliedCount)"),
+                    KeyValueRow(label: "Warnings", value: "\(summary.warningCount)"),
+                    KeyValueRow(label: "Skipped", value: "\(summary.skippedCount)"),
+                    KeyValueRow(label: "Failed", value: "\(summary.failedCount)")
+                ])
+
+                if summary.results.isEmpty {
+                    EmptyStateRow(
+                        title: "No Finder changes required",
+                        detail: "The confirmed apply path found no safe Finder preference changes.",
+                        systemImage: "checkmark.circle"
+                    )
+                } else {
+                    VStack(alignment: .leading, spacing: 8) {
+                        ForEach(summary.results.prefix(4)) { result in
+                            ApplyResultRow(result: result)
+                        }
+
+                        if summary.results.count > 4 {
+                            Text("\(summary.results.count - 4) more")
+                                .font(.caption)
+                                .foregroundStyle(.secondary)
+                        }
+                    }
+                }
+            }
+        case let .failed(message):
+            FailureRow(title: "Confirmed apply failed", detail: message)
+        }
+    }
+}
+
+private struct ApplyResultRow: View {
+    var result: AppApplyResultSummary
+
+    var body: some View {
+        HStack(alignment: .top, spacing: 10) {
+            Image(systemName: result.status == "success" ? "checkmark.circle" : "exclamationmark.triangle")
+                .frame(width: 22)
+                .foregroundStyle(result.status == "success" ? .green : .orange)
+            VStack(alignment: .leading, spacing: 2) {
+                Text(result.status.capitalized)
+                    .font(.subheadline.weight(.semibold))
+                Text(result.message)
+                    .font(.caption)
+                    .foregroundStyle(.secondary)
+                    .fixedSize(horizontal: false, vertical: true)
+            }
+            Spacer()
         }
     }
 }
