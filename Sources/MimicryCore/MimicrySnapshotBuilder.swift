@@ -43,6 +43,12 @@ public struct MimicrySnapshotBuilder {
     }
 
     public func writeSnapshot(to packageURL: URL) async throws -> MimicrySnapshotBuildResult {
+        let (snapshot, capabilities) = try await buildSnapshot()
+        let package = try packageStore.write(snapshot: snapshot, to: packageURL)
+        return MimicrySnapshotBuildResult(package: package, capabilities: capabilities)
+    }
+
+    public func buildSnapshot() async throws -> (snapshot: MimicrySnapshot, capabilities: MacCapabilities) {
         let capabilities = await capabilitiesProvider()
         let context = SnapshotContext(commandRunner: runner, capabilities: capabilities)
         var sections: [SnapshotSection] = []
@@ -56,8 +62,7 @@ public struct MimicrySnapshotBuilder {
             source: SnapshotSource(capabilities: capabilities),
             sections: sections
         )
-        let package = try packageStore.write(snapshot: snapshot, to: packageURL)
-        return MimicrySnapshotBuildResult(package: package, capabilities: capabilities)
+        return (snapshot, capabilities)
     }
 }
 

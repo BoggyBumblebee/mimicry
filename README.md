@@ -20,14 +20,14 @@ The full build prompt is tracked in [PROMPT.md](PROMPT.md).
 
 ## Current Status
 
-Phase 0, Phase 1, and Phase 2 are done. Phase 3 is now being delivered as end-to-end vertical slices so each step can be tested manually. Slice A is implemented: Mimicry can create, validate, and richly inspect a read-only `.mimicry` snapshot package containing environment, Homebrew, App Store, Finder, Terminal, and iCloud sections.
+Phase 0, Phase 1, and Phase 2 are done. Phase 3 is now being delivered as end-to-end vertical slices so each step can be tested manually. Slices A and B are implemented: Mimicry can create, validate, richly inspect, and diff a read-only `.mimicry` snapshot package containing environment, Homebrew, App Store, Finder, Terminal, and iCloud sections.
 
 Current scaffold includes:
 
 - Swift package with `MimicryCore`, `MimicryCLISupport`, and `mimicry` CLI targets.
 - XcodeGen configuration in `project.yml`.
 - SwiftUI app shell.
-- CLI command shells, with `mimicry doctor` reporting read-only local diagnostics, `mimicry snapshot` writing the first real package sections, and `mimicry inspect` rendering a human-readable audit of captured, review-required, excluded, unsupported, and warning items.
+- CLI command shells, with `mimicry doctor` reporting read-only local diagnostics, `mimicry snapshot` writing the first real package sections, `mimicry inspect` rendering a human-readable audit of captured, review-required, excluded, unsupported, and warning items, and `mimicry diff` comparing a snapshot to the current Mac.
 - Core snapshot, provider, log, command-runner, and `.mimicry` package models.
 - Capability detection, Phase 2 providers for environment, Homebrew, and App Store inventory, and Phase 3 providers for Finder, Terminal, and iCloud inventory.
 - Unit tests for snapshot JSON, package checksums, fake command execution, provider registry, capabilities, providers, snapshot building, and CLI smoke behavior.
@@ -72,6 +72,7 @@ Codex has been used to:
 - add Phase 3 Terminal metadata inventory with secret-like shell configuration redaction
 - add Phase 3 iCloud status metadata without capturing credentials or authentication state
 - recut Phase 3 into end-to-end manual-test slices and complete Slice A with rich snapshot inspection
+- complete Slice B with a read-only snapshot diff report
 
 Future implementation work should continue to make Codex-generated changes easy to review: small commits, explicit phase boundaries, tests with each meaningful behavior change, quality and coverage gates before commits, and documentation updates whenever the architecture or supported behavior changes.
 
@@ -154,4 +155,5 @@ swift run mimicry doctor
 swift run mimicry snapshot --output ~/Desktop/manual-test.mimicry
 swift run mimicry validate ~/Desktop/manual-test.mimicry
 swift run mimicry inspect ~/Desktop/manual-test.mimicry
+swift run mimicry diff ~/Desktop/manual-test.mimicry
 ```

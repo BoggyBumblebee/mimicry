@@ -73,7 +73,7 @@ Exit criteria:
 
 ## Phase 3: End-To-End Read-Only Trust Loop
 
-Status: In progress. Read-only Finder inventory, Terminal metadata inventory, shell secret scanning, iCloud status metadata, and rich snapshot inspection are implemented. Diff, dry-run apply, and the first safe apply slice are next.
+Status: In progress. Read-only Finder inventory, Terminal metadata inventory, shell secret scanning, iCloud status metadata, rich snapshot inspection, and snapshot diff are implemented. Dry-run apply and the first safe apply slice are next.
 
 Goal: make the existing providers manually testable as a real workflow before adding more provider breadth.
 
@@ -91,7 +91,7 @@ Deliverables:
 Vertical slices:
 
 - Slice A, Trust The Snapshot: `snapshot`, `validate`, and rich `inspect` make captured, excluded, redacted, unsupported, and review-required items visible.
-- Slice B, Explain The Difference: `diff` compares an existing snapshot with the current Mac and reports matching, changed, missing, skipped, and unsupported items.
+- Slice B, Explain The Difference: `diff` compares an existing snapshot with the current Mac and reports matching, changed, missing, current-only, skipped, and unsupported items.
 - Slice C, Dry-Run Apply: `apply --dry-run` produces a real action plan without mutating this Mac.
 - Slice D, First Safe Apply: enable the smallest explicitly classified mutation path, with backup and clear limitations.
 

@@ -106,8 +106,40 @@ final class MimicryCLISmokeTests: XCTestCase {
         XCTAssertTrue(output.contains("No system settings were changed."))
     }
 
-    func testPlaceholderCommandsNameRequestedSnapshotPath() {
-        XCTAssertTrue(MimicryCLIResponses.diff(packagePath: "target.mimicry").contains("target.mimicry"))
+    func testDiffRendersComparisonAgainstCurrentSnapshot() throws {
+        let temporaryDirectory = try makeTemporaryDirectory()
+        let packageURL = temporaryDirectory.appendingPathComponent("fixture.mimicry")
+        let snapshot = MimicrySnapshot.phaseOneCLIFixture()
+        _ = try MimicryPackageStore().write(snapshot: snapshot, to: packageURL)
+
+        let currentSnapshot = MimicrySnapshot.currentDiffFixture()
+        let output = try MimicryCLIResponses.diff(
+            packagePath: packageURL.path,
+            currentSnapshot: currentSnapshot
+        )
+
+        XCTAssertTrue(output.contains("Mimicry Snapshot Diff"))
+        XCTAssertTrue(output.contains("Snapshot: \(packageURL.path)"))
+        XCTAssertTrue(output.contains("Reference: reference-mac (cmb)"))
+        XCTAssertTrue(output.contains("Current: current-mac (cmb)"))
+        XCTAssertTrue(output.contains("- matching: 2"))
+        XCTAssertTrue(output.contains("- changed: 1"))
+        XCTAssertTrue(output.contains("- missing: 1"))
+        XCTAssertTrue(output.contains("- current only: 1"))
+        XCTAssertTrue(output.contains("- skipped: 1"))
+        XCTAssertTrue(output.contains("- unsupported: 1"))
+        XCTAssertTrue(output.contains("Changed Items"))
+        XCTAssertTrue(output.contains("hostname: reference-mac -> current-mac"))
+        XCTAssertTrue(output.contains("Current-Only Items"))
+        XCTAssertTrue(output.contains("current-only: current has true; not in snapshot"))
+        XCTAssertTrue(output.contains("Skipped Items"))
+        XCTAssertTrue(output.contains("icloud.auth-state"))
+        XCTAssertTrue(output.contains("Snapshot Warnings"))
+        XCTAssertTrue(output.contains("Current Warnings"))
+        XCTAssertTrue(output.contains("No system settings were changed."))
+    }
+
+    func testPlaceholderApplyNamesRequestedSnapshotPath() {
         XCTAssertTrue(MimicryCLIResponses.apply(packagePath: "target.mimicry", dryRun: true).contains("Dry run: true"))
     }
 
@@ -182,6 +214,66 @@ private extension MimicrySnapshot {
                             code: "terminal.config-redacted.zshrc",
                             message: "Shell configuration contains secret-like values and was redacted."
                         )
+                    ]
+                )
+            ]
+        )
+    }
+
+    static func currentDiffFixture() -> MimicrySnapshot {
+        MimicrySnapshot(
+            mimicryVersion: "0.1.0",
+            createdAt: Date(timeIntervalSince1970: 1_786_492_800),
+            source: SnapshotSource(
+                macOSVersion: "26.0",
+                architecture: "arm64",
+                hardwareModel: "MacBookPro",
+                hostname: "current-mac",
+                username: "cmb"
+            ),
+            sections: [
+                SnapshotSection(
+                    identifier: "environment",
+                    displayName: "Environment",
+                    capturedAt: Date(timeIntervalSince1970: 1_786_492_800),
+                    items: [
+                        SnapshotItem(key: "architecture", value: .string("arm64")),
+                        SnapshotItem(
+                            key: "hostname",
+                            value: .string("current-mac"),
+                            classification: .machineSpecific
+                        ),
+                        SnapshotItem(key: "current-only", value: .bool(true))
+                    ],
+                    warnings: [
+                        SnapshotWarning(code: "current-warning", message: "Current warning")
+                    ]
+                ),
+                SnapshotSection(
+                    identifier: "terminal",
+                    displayName: "Terminal",
+                    capturedAt: Date(timeIntervalSince1970: 1_786_492_800),
+                    items: [
+                        SnapshotItem(
+                            key: "icloud.auth-state",
+                            value: .string("excluded"),
+                            classification: .excluded,
+                            applicability: .userSpecific
+                        ),
+                        SnapshotItem(
+                            key: "finder.legacy-setting",
+                            value: .absent,
+                            classification: .unsupported
+                        ),
+                        SnapshotItem(
+                            key: "terminal.config.zshrc",
+                            value: .object(["status": "redacted", "reason": "secret-like values"]),
+                            classification: .potentiallySensitive,
+                            applicability: .userSpecific
+                        )
+                    ],
+                    warnings: [
+                        SnapshotWarning(code: "current-terminal-warning", message: "Current terminal warning")
                     ]
                 )
             ]

@@ -103,6 +103,8 @@ The iCloud slice adds read-only status metadata from local capability state and 
 
 Phase 3 now prioritizes manually testable vertical slices over adding provider breadth. Slice A makes `inspect` the trust surface for snapshots: it reads the same package bundle that `snapshot` writes, summarizes classifications and applicability, groups captured, review-required, excluded, and unsupported items per section, surfaces warnings, and states that no system settings were changed.
 
+Slice B adds a core snapshot diff engine and CLI report. The engine compares a stored reference snapshot with a fresh current snapshot, classifies items as matching, changed, missing, current-only, skipped, or unsupported, and carries snapshot/current warnings forward into the report. The CLI builds the current snapshot in memory and does not write or mutate system settings.
+
 ## Existing Project Context
 
 The implementation should learn from nearby BoggyBumblebee projects:

@@ -88,7 +88,9 @@ struct Diff: AsyncParsableCommand {
     var packagePath: String
 
     func run() async throws {
-        print(MimicryCLIResponses.diff(packagePath: packagePath))
+        let result = try await MimicrySnapshotBuilder().buildSnapshot()
+        let currentSnapshot = result.snapshot
+        print(try MimicryCLIResponses.diff(packagePath: packagePath, currentSnapshot: currentSnapshot))
     }
 }
 

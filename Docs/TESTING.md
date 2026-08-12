@@ -14,6 +14,7 @@ swift run mimicry doctor
 swift run mimicry snapshot --output /tmp/mimicry-phase2b-smoke.mimicry
 swift run mimicry inspect /tmp/mimicry-phase2b-smoke.mimicry
 swift run mimicry validate /tmp/mimicry-phase2b-smoke.mimicry
+swift run mimicry diff /tmp/mimicry-phase2b-smoke.mimicry
 git diff --check
 ```
 
@@ -58,9 +59,12 @@ swift run mimicry doctor
 swift run mimicry snapshot --output ~/Desktop/manual-test.mimicry
 swift run mimicry validate ~/Desktop/manual-test.mimicry
 swift run mimicry inspect ~/Desktop/manual-test.mimicry
+swift run mimicry diff ~/Desktop/manual-test.mimicry
 ```
 
 `inspect` should show package metadata, source Mac metadata, section totals, classification and applicability summaries, captured items, review-required items, excluded items, unsupported items, warnings, and the no-mutation statement.
+
+`diff` should compare the snapshot to the current Mac and show matching, changed, missing, current-only, skipped, unsupported, snapshot-warning, and current-warning groups without mutating system settings.
 
 ## Provider Tests
 
@@ -83,8 +87,9 @@ swift run mimicry inspect ~/Desktop/manual-test.mimicry
 - doctor output renders capability findings without mutating system state
 - snapshot output summarizes the created `.mimicry` package
 - inspect renders a human-readable audit of captured, review-required, excluded, unsupported, and warning items
+- diff renders a human-readable comparison against the current snapshot
 - validate can read a fixture `.mimicry` package
-- remaining placeholder commands echo requested snapshot paths without mutating system state
+- remaining placeholder apply command echoes requested snapshot paths without mutating system state
 
 ## Compatibility Tests
 

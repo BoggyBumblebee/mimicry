@@ -58,11 +58,13 @@ public enum MimicryCLIResponses {
         return "Validation passed."
     }
 
-    public static func diff(packagePath: String) -> String {
-        """
-        Diff is not implemented yet.
-        Snapshot: \(packagePath)
-        """
+    public static func diff(packagePath: String, currentSnapshot: MimicrySnapshot) throws -> String {
+        let package = try MimicryPackageStore().read(from: URL(fileURLWithPath: packagePath))
+        let report = SnapshotDiffEngine().diff(
+            reference: package.snapshot,
+            current: currentSnapshot
+        )
+        return SnapshotDiffReportRenderer(packagePath: packagePath, report: report).render()
     }
 
     public static func apply(packagePath: String, dryRun: Bool) -> String {
@@ -71,6 +73,95 @@ public enum MimicryCLIResponses {
         Snapshot: \(packagePath)
         Dry run: \(dryRun)
         """
+    }
+}
+
+private struct SnapshotDiffReportRenderer {
+    var packagePath: String
+    var report: SnapshotDiffReport
+
+    func render() -> String {
+        var lines = [
+            "Mimicry Snapshot Diff",
+            "=====================",
+            "Snapshot: \(packagePath)",
+            "Reference: \(report.referenceSource.hostname) (\(report.referenceSource.username))",
+            "Current: \(report.currentSource.hostname) (\(report.currentSource.username))",
+            "Sections: \(report.sections.count)",
+            "Items: \(report.itemCount)",
+            "",
+            "Diff Summary",
+            "------------"
+        ]
+
+        for status in SnapshotDiffStatus.displayOrder {
+            lines.append("- \(status.displayName): \(report.count(status))")
+        }
+
+        lines.append("")
+        lines.append("Sections")
+        lines.append("--------")
+
+        for section in report.sections {
+            lines.append(contentsOf: sectionLines(section))
+        }
+
+        lines.append("")
+        lines.append("No system settings were changed.")
+        return lines.joined(separator: "\n")
+    }
+
+    private func sectionLines(_ section: SnapshotSectionDiff) -> [String] {
+        var lines = [
+            "\(section.displayName) (\(section.identifier))",
+            "  Items: \(section.items.count)"
+        ]
+
+        for status in SnapshotDiffStatus.displayOrder {
+            let items = section.items.filter { $0.status == status }
+            guard !items.isEmpty else {
+                continue
+            }
+
+            lines.append("  \(status.groupTitle)")
+            lines.append(contentsOf: items.map(itemLine))
+        }
+
+        if !section.referenceWarnings.isEmpty {
+            lines.append("  Snapshot Warnings")
+            for warning in section.referenceWarnings {
+                lines.append("    - \(warning.code): \(warning.message)")
+            }
+        }
+
+        if !section.currentWarnings.isEmpty {
+            lines.append("  Current Warnings")
+            for warning in section.currentWarnings {
+                lines.append("    - \(warning.code): \(warning.message)")
+            }
+        }
+
+        return lines
+    }
+
+    private func itemLine(_ item: SnapshotItemDiff) -> String {
+        let detail: String
+        switch item.status {
+        case .matching:
+            detail = item.referenceValue?.inspectionDescription ?? "absent"
+        case .changed:
+            detail = "\(item.referenceValue?.inspectionDescription ?? "absent") -> \(item.currentValue?.inspectionDescription ?? "absent")"
+        case .missing:
+            detail = "snapshot has \(item.referenceValue?.inspectionDescription ?? "absent"); current is missing"
+        case .currentOnly:
+            detail = "current has \(item.currentValue?.inspectionDescription ?? "absent"); not in snapshot"
+        case .skipped:
+            detail = "snapshot marks this item as excluded"
+        case .unsupported:
+            detail = "snapshot marks this item as unsupported"
+        }
+
+        return "    - \(item.key): \(detail) [\(item.classification.displayName), \(item.applicability.displayName)]"
     }
 }
 
@@ -281,6 +372,51 @@ private extension ConfigurationClassification {
             return "managed"
         case .unsupported:
             return "unsupported"
+        }
+    }
+}
+
+private extension SnapshotDiffStatus {
+    static let displayOrder: [SnapshotDiffStatus] = [
+        .matching,
+        .changed,
+        .missing,
+        .currentOnly,
+        .skipped,
+        .unsupported
+    ]
+
+    var displayName: String {
+        switch self {
+        case .matching:
+            return "matching"
+        case .changed:
+            return "changed"
+        case .missing:
+            return "missing"
+        case .currentOnly:
+            return "current only"
+        case .skipped:
+            return "skipped"
+        case .unsupported:
+            return "unsupported"
+        }
+    }
+
+    var groupTitle: String {
+        switch self {
+        case .matching:
+            return "Matching Items"
+        case .changed:
+            return "Changed Items"
+        case .missing:
+            return "Missing Items"
+        case .currentOnly:
+            return "Current-Only Items"
+        case .skipped:
+            return "Skipped Items"
+        case .unsupported:
+            return "Unsupported Items"
         }
     }
 }
