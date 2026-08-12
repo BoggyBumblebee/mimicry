@@ -9,12 +9,13 @@ Mimicry/
     Sources/
         MimicryApp/
         MimicryCLI/
+        MimicryCLISupport/
         MimicryCore/
         MimicryProviders/
     Tests/
         MimicryCoreTests/
-        MimicryProviderTests/
         MimicryCLITests/
+        MimicryProviderTests/
     UITests/
     Resources/
     Docs/
@@ -55,6 +56,8 @@ CLI responsibilities:
 
 The GUI and CLI must call the same underlying implementation. No duplicated behavior between app and CLI.
 
+`MimicryCLISupport` owns deterministic response rendering so CLI behavior can be tested without shelling back into SwiftPM. `MimicryCLI` owns the ArgumentParser command definitions and executable entry point, then delegates behavior to shared support and core code.
+
 ## First Implementation Slice
 
 The first implementation slice is intentionally non-mutating:
@@ -64,7 +67,9 @@ The first implementation slice is intentionally non-mutating:
 3. Create `MimicryCore` with snapshot, provider, log, and command-runner models.
 4. Create `MimicryCLI` with `doctor`, `snapshot`, `inspect`, `validate`, `diff`, and `apply` command shells.
 5. Create a SwiftUI app shell with sidebar navigation.
-6. Add tests for snapshot encoding, package checksums, and fake command execution.
+6. Add a capabilities model and provider registry.
+7. Add tests for snapshot encoding, package checksums, fake command execution, provider registry, capabilities, and CLI smoke behavior.
+8. Add macOS CI for SwiftPM and Xcode project validation.
 
 That slice proves the architecture without touching real system settings.
 

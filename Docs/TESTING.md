@@ -11,6 +11,7 @@ xcodebuild -project Mimicry.xcodeproj -scheme Mimicry -destination platform=macO
 xcodebuild -project Mimicry.xcodeproj -scheme Mimicry -destination platform=macOS -derivedDataPath .build/XcodeDerivedData test CODE_SIGNING_ALLOWED=NO
 swift run mimicry --help
 swift run mimicry doctor
+git diff --check
 ```
 
 ## Snapshot Tests
@@ -30,6 +31,15 @@ swift run mimicry doctor
 - Finder configuration
 - browser bookmark parsing
 - Terminal configuration
+- provider registry lookup and ordering
+- capability model defaults
+
+## CLI Tests
+
+- root command exposes expected subcommands
+- scaffold-only doctor output is explicit
+- inspect and validate can read a fixture `.mimicry` package
+- placeholder commands echo requested snapshot paths without mutating system state
 
 ## Compatibility Tests
 

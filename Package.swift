@@ -12,6 +12,10 @@ let package = Package(
             name: "MimicryCore",
             targets: ["MimicryCore"]
         ),
+        .library(
+            name: "MimicryCLISupport",
+            targets: ["MimicryCLISupport"]
+        ),
         .executable(
             name: "mimicry",
             targets: ["MimicryCLI"]
@@ -24,16 +28,27 @@ let package = Package(
         .target(
             name: "MimicryCore"
         ),
+        .target(
+            name: "MimicryCLISupport",
+            dependencies: [
+                "MimicryCore",
+                .product(name: "ArgumentParser", package: "swift-argument-parser")
+            ]
+        ),
         .executableTarget(
             name: "MimicryCLI",
             dependencies: [
-                "MimicryCore",
+                "MimicryCLISupport",
                 .product(name: "ArgumentParser", package: "swift-argument-parser")
             ]
         ),
         .testTarget(
             name: "MimicryCoreTests",
             dependencies: ["MimicryCore"]
+        ),
+        .testTarget(
+            name: "MimicryCLITests",
+            dependencies: ["MimicryCLISupport"]
         )
     ]
 )

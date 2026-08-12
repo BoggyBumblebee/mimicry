@@ -8,6 +8,8 @@ Mimicry is intentionally not looking backward unless a narrow compatibility shim
 
 ## Capability Detection
 
+Phase 1 defines the `MacCapabilities` data model but does not perform real machine detection yet. Phase 2 will add the environment provider that populates it.
+
 At startup, detect:
 
 - macOS version

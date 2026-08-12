@@ -1,9 +1,9 @@
 import ArgumentParser
-import Foundation
-import MimicryCore
+import MimicryCLISupport
 
 @main
-struct MimicryCommand: AsyncParsableCommand {
+@available(macOS 10.15, macCatalyst 13, iOS 13, tvOS 13, watchOS 6, *)
+struct MimicryRootCommand: AsyncParsableCommand {
     static let configuration = CommandConfiguration(
         commandName: "mimicry",
         abstract: "Snapshot, inspect, compare, and apply macOS configuration declarations.",
@@ -26,10 +26,7 @@ struct Doctor: AsyncParsableCommand {
     )
 
     func run() async throws {
-        print("Mimicry Doctor")
-        print("==============")
-        print("Status: Phase 1 scaffold only")
-        print("No system checks have been implemented yet.")
+        print(MimicryCLIResponses.doctor())
     }
 }
 
@@ -43,10 +40,7 @@ struct Snapshot: AsyncParsableCommand {
     var output: String?
 
     func run() async throws {
-        if let output {
-            print("Snapshot output requested: \(output)")
-        }
-        print("Snapshot generation is not implemented in Phase 1.")
+        print(MimicryCLIResponses.snapshot(output: output))
     }
 }
 
@@ -60,13 +54,7 @@ struct Inspect: AsyncParsableCommand {
     var packagePath: String
 
     func run() async throws {
-        let store = MimicryPackageStore()
-        let package = try store.read(from: URL(fileURLWithPath: packagePath))
-        print("Mimicry Snapshot")
-        print("================")
-        print("Schema version: \(package.snapshot.schemaVersion)")
-        print("Mimicry version: \(package.snapshot.mimicryVersion)")
-        print("Sections: \(package.snapshot.sections.count)")
+        print(try MimicryCLIResponses.inspect(packagePath: packagePath))
     }
 }
 
@@ -80,8 +68,7 @@ struct Validate: AsyncParsableCommand {
     var packagePath: String
 
     func run() async throws {
-        _ = try MimicryPackageStore().read(from: URL(fileURLWithPath: packagePath))
-        print("Validation passed.")
+        print(try MimicryCLIResponses.validate(packagePath: packagePath))
     }
 }
 
@@ -95,8 +82,7 @@ struct Diff: AsyncParsableCommand {
     var packagePath: String
 
     func run() async throws {
-        print("Diff is not implemented in Phase 1.")
-        print("Snapshot: \(packagePath)")
+        print(MimicryCLIResponses.diff(packagePath: packagePath))
     }
 }
 
@@ -113,8 +99,6 @@ struct Apply: AsyncParsableCommand {
     var dryRun = false
 
     func run() async throws {
-        print("Apply is not implemented in Phase 1.")
-        print("Snapshot: \(packagePath)")
-        print("Dry run: \(dryRun)")
+        print(MimicryCLIResponses.apply(packagePath: packagePath, dryRun: dryRun))
     }
 }

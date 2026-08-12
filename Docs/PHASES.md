@@ -24,7 +24,7 @@ Exit criteria:
 
 ## Phase 1: Scaffold, Core Contracts, CLI, UI Shell
 
-Status: In progress. The first non-mutating scaffold slice is done.
+Status: Done.
 
 Goal: create a compiling native project with the shared core in place.
 
@@ -37,7 +37,11 @@ Deliverables:
 - Core models for snapshots, providers, validation, planned actions, apply results, and logs.
 - `.mimicry` package-bundle reader/writer with manifest, checksum, and optional encrypted-section placeholders.
 - `CommandRunner` abstraction with a fake implementation for tests.
-- Initial documentation stubs in `Docs/`.
+- Capability model and provider registry.
+- Testable CLI support target.
+- CLI smoke tests.
+- macOS CI workflow.
+- Initial focused documentation under `Docs/`.
 
 Exit criteria:
 

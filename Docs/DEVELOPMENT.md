@@ -41,6 +41,15 @@ xcodegen generate
 
 Do not treat generated `.xcodeproj` churn as the source of truth.
 
+## CI
+
+GitHub Actions runs on `macos-latest` and validates:
+
+- Swift toolchain availability.
+- SwiftPM tests.
+- XcodeGen project generation.
+- Xcode test scheme with repo-local DerivedData.
+
 ## Xcode Signing and Distribution Setup
 
 Mimicry should be distributed outside the Mac App Store as a Developer ID signed and notarized macOS app. The Mac App Store sandbox is a poor fit because Mimicry needs to inspect local applications, shell files, package manager state, browser files, preferences, and system configuration.

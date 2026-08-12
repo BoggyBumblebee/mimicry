@@ -16,16 +16,18 @@ The full build prompt is tracked in [PROMPT.md](PROMPT.md).
 
 ## Current Status
 
-Phase 0 is done. Phase 1 is in progress, with the first non-mutating scaffold slice complete.
+Phase 0 and Phase 1 are done. Phase 2 is next.
 
 Current scaffold includes:
 
-- Swift package with `MimicryCore` and `mimicry` CLI targets.
+- Swift package with `MimicryCore`, `MimicryCLISupport`, and `mimicry` CLI targets.
 - XcodeGen configuration in `project.yml`.
 - SwiftUI app shell.
 - CLI command shells.
 - Core snapshot, provider, log, command-runner, and `.mimicry` package models.
-- Unit tests for snapshot JSON, package checksums, and fake command execution.
+- Capability and provider-registry scaffolding for Phase 2 providers.
+- Unit tests for snapshot JSON, package checksums, fake command execution, provider registry, capabilities, and CLI smoke behavior.
+- GitHub Actions workflow for macOS validation.
 
 No current code mutates system settings.
 
@@ -53,6 +55,7 @@ Codex has been used to:
 - turn the build prompt into an implementation roadmap
 - capture architecture, tooling, safety, and delivery decisions before coding began
 - scaffold the first non-mutating Phase 1 implementation slice
+- complete Phase 1 with capabilities scaffolding, provider registry, CLI smoke tests, and CI
 
 Future implementation work should continue to make Codex-generated changes easy to review: small commits, explicit phase boundaries, tests with each meaningful behavior change, and documentation updates whenever the architecture or supported behavior changes.
 
@@ -78,6 +81,7 @@ The completion log should stay concise. Detailed technical documentation lives i
 | 2026-08-12 | Phase 0: Discovery and decisions | Done | `d434a0b` | Roadmap, toolchain, Xcode distribution setup, safety rules, open decisions, and resolved decisions documented and pushed to `origin/main` |
 | 2026-08-12 | Phase 1 scaffold slice: Swift package, XcodeGen config, SwiftUI shell, CLI shell, core models, `.mimicry` package store, fake command runner, and tests | Done | `a5289a3` | `swift test`, `xcodegen generate`, `xcodebuild ... build`, `xcodebuild ... test`, `swift run mimicry --help`, `swift run mimicry doctor` |
 | 2026-08-12 | Documentation split: README map plus focused docs under `Docs/` | Done | `35976a9` | README and docs reorganized; links and status checked |
+| 2026-08-12 | Phase 1 completion: capabilities shell, provider registry, testable CLI support target, CLI smoke tests, and macOS CI workflow | Done | pending commit | `swift build`, `swift test`, `xcodegen generate`, `xcodebuild ... build`, `xcodebuild ... test`, app launch check, `swift run mimicry --help`, `swift run mimicry doctor`, `git diff --check` |
 
 ## Product Goal
 

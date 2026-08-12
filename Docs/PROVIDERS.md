@@ -16,6 +16,8 @@ protocol ConfigurationProvider {
 }
 ```
 
+Providers are collected through `ProviderRegistry`, which provides stable identifier-based lookup and deterministic provider ordering. Phase 2 providers should register through this structure rather than being hard-coded into CLI or UI code.
+
 ## Classification
 
 Each provider must classify data as:
