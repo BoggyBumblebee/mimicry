@@ -110,7 +110,7 @@ final class SnapshotApplyPlannerTests: XCTestCase {
         XCTAssertEqual(plan.actions.first?.kind, .requiresUserAction)
         XCTAssertEqual(
             plan.actions.first?.summary,
-            "Firefox bookmark import preview: 1 importable, 1 already present, 1 skipped, 0 blocked; import is not implemented yet and requires user review."
+            "Firefox bookmark import preview: 1 importable, 1 already present, 1 skipped, 0 blocked; use export-browser-bookmarks to create a reviewable HTML handoff."
         )
     }
 

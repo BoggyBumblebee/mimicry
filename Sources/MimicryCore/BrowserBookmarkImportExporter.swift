@@ -195,25 +195,44 @@ private struct BrowserBookmarkImportHTMLRenderer {
 
     private func groupedEntries() -> [BrowserBookmarkImportBrowserGroup] {
         let browserNames = Set(entries.map(\.bookmark.browserName)).sorted()
-        return browserNames.map { browserName in
-            let browserEntries = entries.filter { $0.bookmark.browserName == browserName }
-            let folderPaths = Set(browserEntries.map(\.bookmark.folderPath)).sorted()
-            let folders = folderPaths.map { folderPath in
-                BrowserBookmarkImportFolderGroup(
-                    folderPath: folderPath,
-                    entries: browserEntries
-                        .filter { $0.bookmark.folderPath == folderPath }
-                        .sorted { lhs, rhs in
-                            if lhs.bookmark.title == rhs.bookmark.title {
-                                return lhs.bookmark.url < rhs.bookmark.url
-                            }
+        var groups: [BrowserBookmarkImportBrowserGroup] = []
 
-                            return lhs.bookmark.title < rhs.bookmark.title
-                        }
-                )
+        for browserName in browserNames {
+            groups.append(browserGroup(named: browserName))
+        }
+
+        return groups
+    }
+
+    private func browserGroup(named browserName: String) -> BrowserBookmarkImportBrowserGroup {
+        let browserEntries = entries.filter { $0.bookmark.browserName == browserName }
+        let folderPaths = Set(browserEntries.map(\.bookmark.folderPath)).sorted()
+        let folders = folderPaths.map { folderPath in
+            folderGroup(path: folderPath, entries: browserEntries)
+        }
+
+        return BrowserBookmarkImportBrowserGroup(browserName: browserName, folders: folders)
+    }
+
+    private func folderGroup(
+        path: String,
+        entries: [BrowserBookmarkImportEntry]
+    ) -> BrowserBookmarkImportFolderGroup {
+        BrowserBookmarkImportFolderGroup(
+            folderPath: path,
+            entries: sortedEntries(entries.filter { $0.bookmark.folderPath == path })
+        )
+    }
+
+    private func sortedEntries(
+        _ entries: [BrowserBookmarkImportEntry]
+    ) -> [BrowserBookmarkImportEntry] {
+        entries.sorted { lhs, rhs in
+            if lhs.bookmark.title == rhs.bookmark.title {
+                return lhs.bookmark.url < rhs.bookmark.url
             }
 
-            return BrowserBookmarkImportBrowserGroup(browserName: browserName, folders: folders)
+            return lhs.bookmark.title < rhs.bookmark.title
         }
     }
 

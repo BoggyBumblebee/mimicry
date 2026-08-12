@@ -193,9 +193,44 @@ private struct SnapshotApplyPlanRenderer {
             }
         }
 
+        if includesBrowserBookmarkHandoff {
+            lines.append("")
+            lines.append("Browser Bookmark Handoff")
+            lines.append("------------------------")
+            lines.append("Review the browser actions above, then export sanitized bookmarks for manual browser import:")
+            lines.append("mimicry export-browser-bookmarks \(shellEscaped(packagePath)) --output \(shellEscaped(suggestedBrowserBookmarkOutputPath))")
+            lines.append("This writes an HTML import file only; it does not write browser profiles.")
+        }
+
         lines.append("")
         lines.append("No system settings were changed.")
         return lines.joined(separator: "\n")
+    }
+
+    private var includesBrowserBookmarkHandoff: Bool {
+        plan.actions.contains { action in
+            ["safari", "chrome", "firefox"].contains(action.providerIdentifier)
+                && action.kind == .requiresUserAction
+                && action.summary.contains("bookmark import preview")
+        }
+    }
+
+    private var suggestedBrowserBookmarkOutputPath: String {
+        URL(fileURLWithPath: packagePath)
+            .standardizedFileURL
+            .deletingLastPathComponent()
+            .appendingPathComponent("mimicry-browser-bookmarks.html")
+            .path
+    }
+
+    private func shellEscaped(_ value: String) -> String {
+        guard value.rangeOfCharacter(from: .whitespacesAndNewlines) != nil
+            || value.contains("'")
+        else {
+            return value
+        }
+
+        return "'\(value.replacingOccurrences(of: "'", with: "'\\''"))'"
     }
 }
 

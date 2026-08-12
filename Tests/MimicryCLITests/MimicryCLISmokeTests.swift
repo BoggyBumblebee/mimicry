@@ -169,6 +169,26 @@ final class MimicryCLISmokeTests: XCTestCase {
         XCTAssertTrue(output.contains("No system settings were changed."))
     }
 
+    func testApplyDryRunRecommendsBrowserBookmarkExportHandoff() throws {
+        let temporaryDirectory = try makeTemporaryDirectory()
+        let packageURL = temporaryDirectory.appendingPathComponent("fixture.mimicry")
+        let snapshot = MimicrySnapshot.browserBookmarkExportFixture()
+        _ = try MimicryPackageStore().write(snapshot: snapshot, to: packageURL)
+
+        let output = try MimicryCLIResponses.apply(
+            packagePath: packageURL.path,
+            dryRun: true,
+            currentSnapshot: .currentDiffFixture()
+        )
+
+        XCTAssertTrue(output.contains("Safari bookmark import preview: 1 importable"))
+        XCTAssertTrue(output.contains("use export-browser-bookmarks to create a reviewable HTML handoff"))
+        XCTAssertTrue(output.contains("Browser Bookmark Handoff"))
+        XCTAssertTrue(output.contains("mimicry export-browser-bookmarks \(packageURL.path) --output \(temporaryDirectory.appendingPathComponent("mimicry-browser-bookmarks.html").path)"))
+        XCTAssertTrue(output.contains("This writes an HTML import file only; it does not write browser profiles."))
+        XCTAssertTrue(output.contains("No system settings were changed."))
+    }
+
     func testApplyWithoutDryRunRefusesToMutateSystemState() throws {
         let output = try MimicryCLIResponses.apply(packagePath: "target.mimicry", dryRun: false)
 

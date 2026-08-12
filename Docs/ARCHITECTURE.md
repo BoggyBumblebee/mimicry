@@ -122,6 +122,8 @@ Phase 4D adds browser-specific dry-run restore planning inside `SnapshotApplyPla
 
 Phase 4E adds `BrowserBookmarkImportExporter` and the `mimicry export-browser-bookmarks` CLI handoff. The exporter reads sanitized bookmark snapshot items, skips duplicate fingerprints, invalid or non-HTTP(S) URLs, and unavailable browser sources, then writes a Netscape-style HTML import file to the explicit output path. This is a manual browser-native import artifact, not a provider apply path: Mimicry still does not write browser profiles, databases, preferences, cookies, sessions, passwords, or account state.
 
+Phase 4F links the dry-run preview to that export handoff. Browser preview actions now name `export-browser-bookmarks`, and the CLI dry-run renderer adds a `Browser Bookmark Handoff` section with the exact package path and suggested `mimicry-browser-bookmarks.html` output path whenever Safari, Chrome, or Firefox bookmark work is present. This keeps the review-first workflow discoverable without adding browser profile mutation.
+
 ## Existing Project Context
 
 The implementation should learn from nearby BoggyBumblebee projects:

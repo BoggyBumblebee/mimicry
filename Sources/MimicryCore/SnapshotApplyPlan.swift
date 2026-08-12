@@ -134,7 +134,7 @@ private struct BrowserBookmarkApplyPlanner {
             PlannedAction(
                 providerIdentifier: section.identifier,
                 kind: .requiresUserAction,
-                summary: "\(section.displayName) bookmark import preview: \(preview.importableCount) importable, \(preview.alreadyPresentCount) already present, \(preview.skippedCount) skipped, \(preview.blockedCount) blocked; import is not implemented yet and requires user review."
+                summary: "\(section.displayName) bookmark import preview: \(preview.importableCount) importable, \(preview.alreadyPresentCount) already present, \(preview.skippedCount) skipped, \(preview.blockedCount) blocked; use export-browser-bookmarks to create a reviewable HTML handoff."
             )
         ]
     }
