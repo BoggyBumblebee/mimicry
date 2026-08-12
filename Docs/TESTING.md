@@ -18,12 +18,22 @@ git diff --check
 
 The SonarCloud workflow generates an `.xcresult` bundle, converts line coverage to Sonar's generic coverage XML, and converts Xcode test results to Sonar's generic test-execution XML.
 
+The Xcode scheme must gather coverage for every testable source module that SonarCloud counts. `MimicryCore` and `MimicryCLISupport` are both coverage targets, and `MimicryTests` plus `MimicryCLITests` both run under the scheme. `Sources/MimicryCLI/main.swift` is excluded from coverage because it is a thin ArgumentParser entry point; its behavior is validated by `swift run` smoke checks while command rendering and package behavior live in covered support modules.
+
 ```bash
 mkdir -p BuildArtifacts
 xcodebuild -project Mimicry.xcodeproj -scheme Mimicry -destination platform=macOS -derivedDataPath .build/DerivedData -resultBundlePath BuildArtifacts/Mimicry.xcresult test CODE_SIGNING_ALLOWED=NO
 Scripts/xccov-to-sonar-generic.sh BuildArtifacts/Mimicry.xcresult BuildArtifacts/sonar-generic-coverage.xml
 python3 Scripts/xcresult-to-sonar-test-execution.py BuildArtifacts/Mimicry.xcresult BuildArtifacts/sonar-test-execution.xml
 ```
+
+For pre-commit coverage checks, use the converted Sonar XML as the authoritative local denominator:
+
+```bash
+awk '/lineToCover/ {total++; if ($0 ~ /covered="true"/) covered++} END {printf "%.2f%% (%d/%d)\n", covered/total*100, covered, total}' BuildArtifacts/sonar-generic-coverage.xml
+```
+
+The total must stay above 80%, preferably with meaningful headroom.
 
 ## Snapshot Tests
 

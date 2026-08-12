@@ -53,6 +53,8 @@ GitHub Actions runs on macOS runners and validates:
 
 SonarCloud requires a repository secret named `SONAR_TOKEN`. The SonarCloud project key is `BoggyBumblebee_mimicry`.
 
+The local pre-commit coverage gate should use the same source boundary as SonarCloud. The generated Xcode project includes both `MimicryCore` and `MimicryCLISupport` in the `Mimicry` scheme coverage targets, with both core and CLI support tests enabled. The thin `Sources/MimicryCLI/main.swift` ArgumentParser wrapper is excluded from Sonar coverage and validated through CLI smoke commands instead.
+
 ## Xcode Signing and Distribution Setup
 
 Mimicry should be distributed outside the Mac App Store as a Developer ID signed and notarized macOS app. The Mac App Store sandbox is a poor fit because Mimicry needs to inspect local applications, shell files, package manager state, browser files, preferences, and system configuration.

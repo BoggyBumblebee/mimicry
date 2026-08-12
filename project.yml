@@ -19,6 +19,19 @@ targets:
         PRODUCT_BUNDLE_IDENTIFIER: com.boggybumblebee.mimicry.core
         GENERATE_INFOPLIST_FILE: YES
         ENABLE_APP_SANDBOX: NO
+  MimicryCLISupport:
+    type: framework
+    platform: macOS
+    deploymentTarget: "15.0"
+    sources:
+      - path: Sources/MimicryCLISupport
+    dependencies:
+      - target: MimicryCore
+    settings:
+      base:
+        PRODUCT_BUNDLE_IDENTIFIER: com.boggybumblebee.mimicry.cli-support
+        GENERATE_INFOPLIST_FILE: YES
+        ENABLE_APP_SANDBOX: NO
   Mimicry:
     type: application
     platform: macOS
@@ -58,16 +71,33 @@ targets:
       base:
         PRODUCT_BUNDLE_IDENTIFIER: com.boggybumblebee.mimicry.tests
         GENERATE_INFOPLIST_FILE: YES
+  MimicryCLITests:
+    type: bundle.unit-test
+    platform: macOS
+    deploymentTarget: "15.0"
+    sources:
+      - path: Tests/MimicryCLITests
+    dependencies:
+      - target: MimicryCLISupport
+      - target: MimicryCore
+    settings:
+      base:
+        PRODUCT_BUNDLE_IDENTIFIER: com.boggybumblebee.mimicry.cli-tests
+        GENERATE_INFOPLIST_FILE: YES
 schemes:
   Mimicry:
     build:
       targets:
         Mimicry: all
         MimicryCore: all
+        MimicryCLISupport: all
         MimicryTests: [test]
+        MimicryCLITests: [test]
     test:
       gatherCoverageData: true
       coverageTargets:
         - MimicryCore
+        - MimicryCLISupport
       targets:
         - MimicryTests
+        - MimicryCLITests

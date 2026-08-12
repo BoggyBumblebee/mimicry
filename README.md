@@ -20,7 +20,7 @@ The full build prompt is tracked in [PROMPT.md](PROMPT.md).
 
 ## Current Status
 
-Phase 0 and Phase 1 are done. Phase 2A capability detection and `doctor` diagnostics are in progress.
+Phase 0, Phase 1, and Phase 2A capability detection and `doctor` diagnostics are done.
 
 Current scaffold includes:
 
@@ -63,6 +63,7 @@ Codex has been used to:
 - complete Phase 1 with capabilities scaffolding, provider registry, CLI smoke tests, and CI
 - configure SonarCloud analysis and README status badges following the Hodgepodge project pattern
 - start Phase 2A with read-only capability detection and structured `mimicry doctor` output
+- align local coverage reporting with SonarCloud's source boundary before commits
 
 Future implementation work should continue to make Codex-generated changes easy to review: small commits, explicit phase boundaries, tests with each meaningful behavior change, and documentation updates whenever the architecture or supported behavior changes.
 
@@ -92,6 +93,7 @@ The completion log should stay concise. Detailed technical documentation lives i
 | 2026-08-12 | SonarCloud setup: project properties, analysis workflow, coverage/test report converters, artifact ignore rule, and README badges | Done | `95e0408` | `bash -n`, `python3 -m py_compile`, `xcodegen generate`, `xcodebuild ... test`, report conversion scripts, `git diff --check` |
 | 2026-08-12 | SonarCloud activation: project analysis and README badge endpoints are live | Done | `3b43182` | SonarCloud quality gate and coverage badge endpoints return measure SVGs |
 | 2026-08-12 | Phase 2A doctor diagnostics: read-only capability detector, PASS/WARN/INFO/BLOCKED output, fake-runner tests, and CLI wiring | Done | `ac361f4` | `swift test`, `swift run mimicry doctor`, `xcodegen generate`, `xcodebuild ... test`, coverage gate 90.26%, `git diff --check` |
+| 2026-08-12 | Coverage denominator alignment: XcodeGen scheme now measures `MimicryCore` and `MimicryCLISupport`, runs CLI support tests, and excludes the thin CLI entry point from Sonar coverage | Done | Pending | `xcodegen generate`, `xcodebuild ... test`, Sonar XML coverage 92.15% (657/713) |
 
 ## Product Goal
 
