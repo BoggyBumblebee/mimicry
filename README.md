@@ -20,7 +20,7 @@ The full build prompt is tracked in [PROMPT.md](PROMPT.md).
 
 ## Current Status
 
-Phase 0, Phase 1, and Phase 2 are done. Mimicry can now produce a read-only `.mimicry` snapshot package containing environment, Homebrew, and App Store sections.
+Phase 0, Phase 1, and Phase 2 are done. Phase 3 has started with read-only Finder preference inventory. Mimicry can now produce a read-only `.mimicry` snapshot package containing environment, Homebrew, App Store, and Finder sections.
 
 Current scaffold includes:
 
@@ -29,7 +29,7 @@ Current scaffold includes:
 - SwiftUI app shell.
 - CLI command shells, with `mimicry doctor` reporting read-only local diagnostics and `mimicry snapshot` writing the first real package sections.
 - Core snapshot, provider, log, command-runner, and `.mimicry` package models.
-- Capability detection and Phase 2 providers for environment, Homebrew, and App Store inventory.
+- Capability detection, Phase 2 providers for environment, Homebrew, and App Store inventory, and the first Phase 3 Finder provider.
 - Unit tests for snapshot JSON, package checksums, fake command execution, provider registry, capabilities, providers, snapshot building, and CLI smoke behavior.
 - GitHub Actions workflow for macOS validation.
 - SonarCloud configuration, coverage conversion, and README quality badges.
@@ -68,6 +68,7 @@ Codex has been used to:
 - add a reusable Codex quality-gate skill so commits preserve or improve the SonarCloud baseline
 - raise the reusable Codex quality-gate skill to a zero-open-issue SonarCloud bar after the first cleanup pass
 - complete Phase 2 with real read-only snapshot generation for environment, Homebrew, and App Store sections
+- start Phase 3 with read-only Finder preference inventory
 
 Future implementation work should continue to make Codex-generated changes easy to review: small commits, explicit phase boundaries, tests with each meaningful behavior change, quality and coverage gates before commits, and documentation updates whenever the architecture or supported behavior changes.
 

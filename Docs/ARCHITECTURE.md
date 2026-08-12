@@ -39,7 +39,7 @@ Core responsibilities:
 
 `MacCapabilitiesDetector` is the read-only diagnostics entry point. It uses `ProcessCommandRunner` in production and `FakeCommandRunner` in tests so command-probe behavior remains covered without running real system commands in unit tests.
 
-`MimicrySnapshotBuilder` combines detected capabilities with the first read-only providers: environment, Homebrew, and App Store. It writes the resulting snapshot through `MimicryPackageStore` so CLI-created packages use the same package format as tests and future app workflows.
+`MimicrySnapshotBuilder` combines detected capabilities with the first read-only providers: environment, Homebrew, App Store, and Finder. It writes the resulting snapshot through `MimicryPackageStore` so CLI-created packages use the same package format as tests and future app workflows.
 
 App responsibilities:
 
@@ -86,6 +86,10 @@ The Phase 2 snapshot slice keeps the same non-mutating boundary while producing 
 - App Store applications through `mas list` when `mas` is available
 
 Missing Homebrew or `mas` produces warnings in the snapshot section instead of crashing the command.
+
+## Phase 3 Finder Slice
+
+The first Phase 3 slice adds read-only Finder preference inventory. It uses the same command-runner abstraction as other providers, reads stable `com.apple.finder` keys through `defaults`, marks user-specific paths for review, and treats missing defaults as absent values rather than command failures.
 
 ## Existing Project Context
 

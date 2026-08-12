@@ -53,12 +53,13 @@ The total must stay above 80%, preferably with meaningful headroom.
 
 - Homebrew discovery
 - App Store discovery
-- Finder configuration
+- Finder configuration discovery and absent-preference handling
 - browser bookmark parsing
 - Terminal configuration
 - provider registry lookup and ordering
 - capability model defaults
 - capability detector command-output parsing with fake runners
+- provider lifecycle methods that intentionally defer apply behavior to later phases
 
 ## CLI Tests
 

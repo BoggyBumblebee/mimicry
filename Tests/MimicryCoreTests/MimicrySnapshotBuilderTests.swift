@@ -24,7 +24,7 @@ final class MimicrySnapshotBuilderTests: XCTestCase {
         let package = try MimicryPackageStore().read(from: packageURL)
 
         XCTAssertEqual(result.package.url.path, packageURL.standardizedFileURL.path)
-        XCTAssertEqual(package.snapshot.sections.map(\.identifier), ["environment", "homebrew", "app-store"])
+        XCTAssertEqual(package.snapshot.sections.map(\.identifier), ["environment", "homebrew", "app-store", "finder"])
         XCTAssertEqual(package.snapshot.source.hostname, "reference-mac.local")
         XCTAssertTrue(package.snapshot.sections.flatMap(\.warnings).contains(SnapshotWarning(code: "app-store.mas-unavailable", message: "`mas` was not available; App Store applications were not captured.")))
     }

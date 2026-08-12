@@ -22,9 +22,14 @@ public enum SystemToolPathFactory {
 
 public struct SnapshotProviderToolPaths: Equatable, Sendable {
     public var env: URL
+    public var defaults: URL
 
-    public init(env: URL? = nil) {
+    public init(
+        env: URL? = nil,
+        defaults: URL? = nil
+    ) {
         self.env = env ?? SystemToolPathFactory.usrBin("env")
+        self.defaults = defaults ?? SystemToolPathFactory.usrBin("defaults")
     }
 
     public static let macOSDefault = SnapshotProviderToolPaths()

@@ -38,6 +38,7 @@ let package = Package(
         .executableTarget(
             name: "MimicryCLI",
             dependencies: [
+                "MimicryCore",
                 "MimicryCLISupport",
                 .product(name: "ArgumentParser", package: "swift-argument-parser")
             ]

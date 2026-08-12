@@ -33,11 +33,12 @@ The snapshot must not contain passwords, tokens, cookies, private keys, browser 
 
 ## Current Sections
 
-Phase 2 writes these initial sections into `snapshot.json`:
+Mimicry currently writes these initial sections into `snapshot.json`:
 
 - `environment`: macOS, architecture, hardware model, hostname, username, admin status, tool availability, and service states.
 - `homebrew`: Homebrew availability, prefix, architecture, version, taps, formulae, and casks.
 - `app-store`: `mas` availability and App Store application inventory when `mas list` is available.
+- `finder`: stable Finder preferences captured with `defaults read`, including absent values where individual defaults are not set.
 
 These sections are read-only inventory. They do not perform installs, upgrades, sign-ins, preference writes, or other system mutation.
 
