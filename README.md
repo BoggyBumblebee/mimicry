@@ -26,11 +26,11 @@ Current scaffold includes:
 
 - Swift package with `MimicryCore`, `MimicryCLISupport`, and `mimicry` CLI targets.
 - XcodeGen configuration in `project.yml`.
-- SwiftUI app shell.
+- Native SwiftUI dashboard shell with Snapshot, Apply, Compare, History, Diagnostics, and Settings surfaces reflecting the current safe workflow.
 - CLI command shells, with `mimicry doctor` reporting read-only local diagnostics, `mimicry snapshot` writing the first real package sections, `mimicry inspect` rendering a human-readable audit of captured, review-required, excluded, unsupported, and warning items, `mimicry diff` comparing a snapshot to the current Mac, `mimicry apply --dry-run` rendering action plans including browser bookmark import previews and the exact export handoff command when browser work is present, `mimicry export-browser-bookmarks` writing a reviewable browser-import HTML handoff, and `mimicry apply --confirm` applying only explicitly safe Finder boolean/string preferences with a backup.
 - Core snapshot, provider, log, command-runner, and `.mimicry` package models.
 - Capability detection, Phase 2 providers for environment, Homebrew, and App Store inventory, Phase 3 providers for Finder, Terminal, and iCloud inventory, and Phase 4 Safari, Chrome, and Firefox bookmark inventory providers.
-- Unit tests for snapshot JSON, package checksums, fake command execution, provider registry, capabilities, providers, snapshot building, dry-run planning, browser bookmark export, confirmed Finder apply behavior, and CLI smoke behavior.
+- Unit tests for snapshot JSON, package checksums, fake command execution, provider registry, capabilities, providers, snapshot building, dry-run planning, browser bookmark export, confirmed Finder apply behavior, CLI smoke behavior, and app shell smoke/content behavior.
 - GitHub Actions workflow for macOS validation.
 - SonarCloud configuration, coverage conversion, and README quality badges.
 

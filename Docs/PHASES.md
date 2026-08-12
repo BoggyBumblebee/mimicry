@@ -147,6 +147,8 @@ Exit criteria:
 
 ## Phase 6: Hardening, UI Completion, Compatibility, Documentation
 
+Status: In progress for the GUI shell. The first polish slice replaces the Phase 1 placeholder with a native dashboard-style SwiftUI shell, section-specific Snapshot/Apply/Compare/History/Diagnostics surfaces, a Settings scene, and app smoke/content tests. Full workflow wiring remains future Phase 6 work.
+
 Goal: make the MVP trustworthy enough to use on real Macs.
 
 Deliverables:

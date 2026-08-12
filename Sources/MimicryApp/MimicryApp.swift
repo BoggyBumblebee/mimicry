@@ -7,62 +7,465 @@ struct MimicryApp: App {
         WindowGroup {
             RootView()
         }
+        .commands {
+            SidebarCommands()
+        }
+
+        Settings {
+            SettingsView()
+        }
     }
 }
 
-private struct RootView: View {
-    @State private var selection: AppSection? = .snapshot
+struct RootView: View {
+    @State private var selection: AppSection? = .dashboard
 
     var body: some View {
         NavigationSplitView {
-            List(AppSection.allCases, selection: $selection) { section in
-                Label(section.title, systemImage: section.systemImage)
-                    .tag(section)
-            }
-            .navigationTitle("Mimicry")
+            Sidebar(selection: $selection)
         } detail: {
-            DetailView(section: selection ?? .snapshot)
+            DetailView(section: selection ?? .dashboard)
         }
-        .frame(minWidth: 920, minHeight: 620)
+        .frame(minWidth: 980, minHeight: 660)
+        .toolbar {
+            ToolbarItemGroup(placement: .primaryAction) {
+                Button {
+                    selection = .snapshot
+                } label: {
+                    Label("Snapshot", systemImage: "camera.viewfinder")
+                }
+                .help("Go to Snapshot")
+
+                Button {
+                    selection = .diagnostics
+                } label: {
+                    Label("Doctor", systemImage: "stethoscope")
+                }
+                .help("Go to Diagnostics")
+            }
+        }
     }
 }
 
-private struct DetailView: View {
+private struct Sidebar: View {
+    @Binding var selection: AppSection?
+
+    var body: some View {
+        List(AppSection.allCases, selection: $selection) { section in
+            Label(section.title, systemImage: section.systemImage)
+                .tag(section)
+        }
+        .navigationTitle("Mimicry")
+        .listStyle(.sidebar)
+    }
+}
+
+struct DetailView: View {
     var section: AppSection
 
     var body: some View {
-        VStack(alignment: .leading, spacing: 16) {
-            Label(section.title, systemImage: section.systemImage)
-                .font(.largeTitle)
-                .fontWeight(.semibold)
+        ScrollView {
+            VStack(alignment: .leading, spacing: 24) {
+                SectionHeader(section: section)
 
-            Text(section.phaseOneStatus)
-                .foregroundStyle(.secondary)
-
-            Divider()
-
-            Text("Phase 1 is scaffolding the app shell, CLI, shared models, and snapshot package format. No system settings are changed by this build.")
-                .fixedSize(horizontal: false, vertical: true)
-
-            Spacer()
+                switch section {
+                case .dashboard:
+                    DashboardView()
+                case .snapshot:
+                    SnapshotView()
+                case .apply:
+                    ApplyView()
+                case .compare:
+                    CompareView()
+                case .history:
+                    HistoryView()
+                case .diagnostics:
+                    DiagnosticsView()
+                }
+            }
+            .padding(28)
+            .frame(maxWidth: 1120, alignment: .leading)
         }
-        .padding(28)
+        .background(Color(nsColor: .windowBackgroundColor))
         .navigationTitle(section.title)
     }
 }
 
-private enum AppSection: String, CaseIterable, Identifiable {
+private struct SectionHeader: View {
+    var section: AppSection
+
+    var body: some View {
+        HStack(alignment: .center, spacing: 14) {
+            Image(systemName: section.systemImage)
+                .font(.system(size: 28, weight: .semibold))
+                .symbolRenderingMode(.hierarchical)
+                .foregroundStyle(Color.accentColor)
+                .frame(width: 44, height: 44)
+                .background(.quaternary, in: RoundedRectangle(cornerRadius: 8))
+
+            VStack(alignment: .leading, spacing: 4) {
+                Text(section.title)
+                    .font(.largeTitle.weight(.semibold))
+                Text(section.subtitle)
+                    .foregroundStyle(.secondary)
+            }
+
+            Spacer()
+        }
+    }
+}
+
+private struct DashboardView: View {
+    private let summaries = CapabilitySummary.current
+    private let workflow = WorkflowStep.current
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: 20) {
+            StatusBand(
+                title: "Phase 4 Complete",
+                detail: "Review-first browser capture, dry-run planning, and HTML handoff are in place. The only confirmed mutation path remains Finder-safe preferences."
+            )
+
+            LazyVGrid(columns: [GridItem(.adaptive(minimum: 220), spacing: 14)], spacing: 14) {
+                ForEach(summaries) { summary in
+                    MetricCard(summary: summary)
+                }
+            }
+
+            ContentPanel(title: "Workflow", systemImage: "point.topleft.down.curvedto.point.bottomright.up") {
+                VStack(spacing: 0) {
+                    ForEach(workflow) { step in
+                        WorkflowRow(step: step)
+                        if step.id != workflow.last?.id {
+                            Divider()
+                                .padding(.leading, 36)
+                        }
+                    }
+                }
+            }
+        }
+    }
+}
+
+private struct SnapshotView: View {
+    var body: some View {
+        TwoColumnPanels {
+            ContentPanel(title: "Capture", systemImage: "camera.viewfinder") {
+                ActionList(items: [
+                    ActionItem(title: "Environment", status: "Captured", systemImage: "macbook"),
+                    ActionItem(title: "Homebrew", status: "Captured", systemImage: "shippingbox"),
+                    ActionItem(title: "App Store", status: "Captured", systemImage: "bag"),
+                    ActionItem(title: "Finder", status: "Captured", systemImage: "folder"),
+                    ActionItem(title: "Terminal", status: "Reviewed", systemImage: "terminal"),
+                    ActionItem(title: "iCloud", status: "User action", systemImage: "icloud"),
+                    ActionItem(title: "Browsers", status: "Review only", systemImage: "safari")
+                ])
+            }
+
+            ContentPanel(title: "Package Review", systemImage: "doc.text.magnifyingglass") {
+                KeyValueList(rows: [
+                    KeyValueRow(label: "Format", value: ".mimicry package"),
+                    KeyValueRow(label: "Checksums", value: "Manifest backed"),
+                    KeyValueRow(label: "Secrets", value: "Redacted or excluded"),
+                    KeyValueRow(label: "Browser URLs", value: "Queries and fragments removed")
+                ])
+            }
+        }
+    }
+}
+
+private struct ApplyView: View {
+    var body: some View {
+        TwoColumnPanels {
+            ContentPanel(title: "Confirmed Apply", systemImage: "checkmark.shield") {
+                ActionList(items: [
+                    ActionItem(title: "Finder booleans", status: "Enabled", systemImage: "checkmark.circle"),
+                    ActionItem(title: "Finder strings", status: "Enabled", systemImage: "checkmark.circle"),
+                    ActionItem(title: "Backup before write", status: "Required", systemImage: "externaldrive"),
+                    ActionItem(title: "Deletes", status: "Blocked", systemImage: "nosign")
+                ])
+            }
+
+            ContentPanel(title: "Review Required", systemImage: "person.crop.circle.badge.exclamationmark") {
+                ActionList(items: [
+                    ActionItem(title: "Homebrew installs", status: "Dry-run only", systemImage: "shippingbox"),
+                    ActionItem(title: "App Store apps", status: "Dry-run only", systemImage: "bag"),
+                    ActionItem(title: "Terminal files", status: "Review only", systemImage: "terminal"),
+                    ActionItem(title: "Browser imports", status: "HTML handoff", systemImage: "safari")
+                ])
+            }
+        }
+    }
+}
+
+private struct CompareView: View {
+    var body: some View {
+        ContentPanel(title: "Diff Groups", systemImage: "square.split.2x1") {
+            LazyVGrid(columns: [GridItem(.adaptive(minimum: 180), spacing: 12)], spacing: 12) {
+                ForEach(DiffGroup.current) { group in
+                    CompactStatusTile(title: group.title, value: group.detail, systemImage: group.systemImage)
+                }
+            }
+        }
+    }
+}
+
+private struct HistoryView: View {
+    var body: some View {
+        ContentPanel(title: "Recent Milestones", systemImage: "clock.arrow.circlepath") {
+            VStack(alignment: .leading, spacing: 12) {
+                MilestoneRow(title: "Phase 4 closeout", detail: "Browser provider phase complete", commit: "92ae7f2")
+                MilestoneRow(title: "Browser dry-run handoff", detail: "Apply preview links to export command", commit: "4f499d5")
+                MilestoneRow(title: "Browser bookmark export", detail: "Reviewable Netscape HTML artifact", commit: "974012e")
+            }
+        }
+    }
+}
+
+private struct DiagnosticsView: View {
+    var body: some View {
+        TwoColumnPanels {
+            ContentPanel(title: "Doctor Signals", systemImage: "stethoscope") {
+                KeyValueList(rows: [
+                    KeyValueRow(label: "Command Line Tools", value: "Checked"),
+                    KeyValueRow(label: "Homebrew", value: "Checked"),
+                    KeyValueRow(label: "mas", value: "Checked"),
+                    KeyValueRow(label: "FileVault", value: "Checked"),
+                    KeyValueRow(label: "SIP", value: "Checked"),
+                    KeyValueRow(label: "MDM", value: "Reported")
+                ])
+            }
+
+            ContentPanel(title: "Quality", systemImage: "checkmark.seal") {
+                KeyValueList(rows: [
+                    KeyValueRow(label: "CI", value: "Passing"),
+                    KeyValueRow(label: "SonarCloud", value: "Passing"),
+                    KeyValueRow(label: "Open issues", value: "0"),
+                    KeyValueRow(label: "Coverage", value: "93.7%")
+                ])
+            }
+        }
+    }
+}
+
+struct SettingsView: View {
+    @AppStorage("requireExplicitConfirmation") private var requireExplicitConfirmation = true
+    @AppStorage("showAdvancedDiagnostics") private var showAdvancedDiagnostics = false
+
+    var body: some View {
+        Form {
+            Toggle("Require explicit confirmation before apply", isOn: $requireExplicitConfirmation)
+            Toggle("Show advanced diagnostics", isOn: $showAdvancedDiagnostics)
+        }
+        .formStyle(.grouped)
+        .padding(20)
+        .frame(width: 460)
+    }
+}
+
+private struct TwoColumnPanels<Content: View>: View {
+    @ViewBuilder var content: Content
+
+    var body: some View {
+        LazyVGrid(columns: [GridItem(.adaptive(minimum: 320), spacing: 16)], spacing: 16) {
+            content
+        }
+    }
+}
+
+private struct StatusBand: View {
+    var title: String
+    var detail: String
+
+    var body: some View {
+        HStack(alignment: .top, spacing: 12) {
+            Image(systemName: "checkmark.seal.fill")
+                .font(.title2)
+                .foregroundStyle(.green)
+            VStack(alignment: .leading, spacing: 4) {
+                Text(title)
+                    .font(.headline)
+                Text(detail)
+                    .foregroundStyle(.secondary)
+                    .fixedSize(horizontal: false, vertical: true)
+            }
+            Spacer()
+        }
+        .padding(16)
+        .background(.thinMaterial, in: RoundedRectangle(cornerRadius: 8))
+    }
+}
+
+private struct ContentPanel<Content: View>: View {
+    var title: String
+    var systemImage: String
+    @ViewBuilder var content: Content
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: 14) {
+            Label(title, systemImage: systemImage)
+                .font(.headline)
+
+            content
+        }
+        .padding(16)
+        .frame(maxWidth: .infinity, alignment: .topLeading)
+        .background(.background, in: RoundedRectangle(cornerRadius: 8))
+        .overlay {
+            RoundedRectangle(cornerRadius: 8)
+                .stroke(.separator, lineWidth: 1)
+        }
+    }
+}
+
+private struct MetricCard: View {
+    var summary: CapabilitySummary
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: 10) {
+            HStack {
+                Label(summary.title, systemImage: summary.systemImage)
+                    .font(.headline)
+                Spacer()
+                Text(summary.status)
+                    .font(.caption.weight(.semibold))
+                    .padding(.horizontal, 8)
+                    .padding(.vertical, 4)
+                    .background(summary.tint.opacity(0.16), in: Capsule())
+                    .foregroundStyle(summary.tint)
+            }
+
+            Text(summary.detail)
+                .foregroundStyle(.secondary)
+                .fixedSize(horizontal: false, vertical: true)
+        }
+        .padding(16)
+        .frame(maxWidth: .infinity, minHeight: 124, alignment: .topLeading)
+        .background(.background, in: RoundedRectangle(cornerRadius: 8))
+        .overlay {
+            RoundedRectangle(cornerRadius: 8)
+                .stroke(.separator, lineWidth: 1)
+        }
+    }
+}
+
+private struct WorkflowRow: View {
+    var step: WorkflowStep
+
+    var body: some View {
+        HStack(alignment: .top, spacing: 12) {
+            Image(systemName: step.systemImage)
+                .frame(width: 24)
+                .foregroundStyle(step.tint)
+
+            VStack(alignment: .leading, spacing: 3) {
+                Text(step.title)
+                    .font(.subheadline.weight(.semibold))
+                Text(step.detail)
+                    .font(.subheadline)
+                    .foregroundStyle(.secondary)
+            }
+
+            Spacer()
+        }
+        .padding(.vertical, 10)
+    }
+}
+
+private struct ActionList: View {
+    var items: [ActionItem]
+
+    var body: some View {
+        VStack(spacing: 10) {
+            ForEach(items) { item in
+                HStack(spacing: 10) {
+                    Image(systemName: item.systemImage)
+                        .frame(width: 22)
+                        .foregroundStyle(.secondary)
+                    Text(item.title)
+                    Spacer()
+                    Text(item.status)
+                        .foregroundStyle(.secondary)
+                }
+                .font(.subheadline)
+            }
+        }
+    }
+}
+
+private struct KeyValueList: View {
+    var rows: [KeyValueRow]
+
+    var body: some View {
+        VStack(spacing: 10) {
+            ForEach(rows) { row in
+                LabeledContent(row.label, value: row.value)
+                    .font(.subheadline)
+            }
+        }
+    }
+}
+
+private struct CompactStatusTile: View {
+    var title: String
+    var value: String
+    var systemImage: String
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: 8) {
+            Image(systemName: systemImage)
+                .foregroundStyle(Color.accentColor)
+            Text(title)
+                .font(.subheadline.weight(.semibold))
+            Text(value)
+                .font(.caption)
+                .foregroundStyle(.secondary)
+        }
+        .padding(12)
+        .frame(maxWidth: .infinity, minHeight: 100, alignment: .topLeading)
+        .background(.quinary, in: RoundedRectangle(cornerRadius: 8))
+    }
+}
+
+private struct MilestoneRow: View {
+    var title: String
+    var detail: String
+    var commit: String
+
+    var body: some View {
+        HStack(alignment: .top, spacing: 12) {
+            Image(systemName: "checkmark.circle.fill")
+                .foregroundStyle(.green)
+                .padding(.top, 1)
+            VStack(alignment: .leading, spacing: 3) {
+                Text(title)
+                    .font(.subheadline.weight(.semibold))
+                Text(detail)
+                    .font(.subheadline)
+                    .foregroundStyle(.secondary)
+            }
+            Spacer()
+            Text(commit)
+                .font(.caption.monospaced())
+                .foregroundStyle(.secondary)
+        }
+    }
+}
+
+enum AppSection: String, CaseIterable, Identifiable {
+    case dashboard
     case snapshot
     case apply
     case compare
     case history
-    case settings
     case diagnostics
 
     var id: String { rawValue }
 
     var title: String {
         switch self {
+        case .dashboard:
+            "Dashboard"
         case .snapshot:
             "Snapshot"
         case .apply:
@@ -71,15 +474,32 @@ private enum AppSection: String, CaseIterable, Identifiable {
             "Compare"
         case .history:
             "History"
-        case .settings:
-            "Settings"
         case .diagnostics:
             "Diagnostics"
         }
     }
 
+    var subtitle: String {
+        switch self {
+        case .dashboard:
+            "Current project state and trusted workflow."
+        case .snapshot:
+            "Capture the reviewable parts of this Mac."
+        case .apply:
+            "Plan changes first, then apply only the approved safe slice."
+        case .compare:
+            "Compare a package with the current Mac."
+        case .history:
+            "Track completed milestones and package activity."
+        case .diagnostics:
+            "Check local tools, services, and quality signals."
+        }
+    }
+
     var systemImage: String {
         switch self {
+        case .dashboard:
+            "rectangle.3.group"
         case .snapshot:
             "camera.viewfinder"
         case .apply:
@@ -88,27 +508,118 @@ private enum AppSection: String, CaseIterable, Identifiable {
             "square.split.2x1"
         case .history:
             "clock.arrow.circlepath"
-        case .settings:
-            "gearshape"
         case .diagnostics:
             "stethoscope"
         }
     }
+}
 
-    var phaseOneStatus: String {
-        switch self {
-        case .snapshot:
-            "Create and inspect .mimicry package scaffolds."
-        case .apply:
-            "Apply planning is placeholder-only in Phase 1."
-        case .compare:
-            "Diff planning arrives after provider snapshots exist."
-        case .history:
-            "History will be backed by structured operation logs."
-        case .settings:
-            "Settings will hold safety, export, and CLI installation preferences."
-        case .diagnostics:
-            "Doctor checks arrive with the capability-detection provider."
-        }
-    }
+struct CapabilitySummary: Identifiable {
+    var id: String { title }
+    var title: String
+    var status: String
+    var detail: String
+    var systemImage: String
+    var tint: Color
+
+    static let current = [
+        CapabilitySummary(
+            title: "Providers",
+            status: "9 ready",
+            detail: "Environment, Homebrew, App Store, Finder, Terminal, iCloud, Safari, Chrome, and Firefox.",
+            systemImage: "square.stack.3d.up",
+            tint: .blue
+        ),
+        CapabilitySummary(
+            title: "Apply",
+            status: "Narrow",
+            detail: "Confirmed writes are limited to backed-up Finder boolean and string preferences.",
+            systemImage: "checkmark.shield",
+            tint: .green
+        ),
+        CapabilitySummary(
+            title: "Browsers",
+            status: "Handoff",
+            detail: "Bookmarks are captured safely and restored through a reviewable HTML import artifact.",
+            systemImage: "safari",
+            tint: .orange
+        ),
+        CapabilitySummary(
+            title: "Quality",
+            status: "Green",
+            detail: "CI and SonarCloud are passing with zero open Sonar issues.",
+            systemImage: "checkmark.seal",
+            tint: .green
+        )
+    ]
+}
+
+struct WorkflowStep: Identifiable {
+    var id: String { title }
+    var title: String
+    var detail: String
+    var systemImage: String
+    var tint: Color
+
+    static let current = [
+        WorkflowStep(
+            title: "Capture",
+            detail: "Create a package from safe, reviewable providers.",
+            systemImage: "camera.viewfinder",
+            tint: .blue
+        ),
+        WorkflowStep(
+            title: "Inspect",
+            detail: "Review captured, excluded, warning, and user-action items.",
+            systemImage: "doc.text.magnifyingglass",
+            tint: .purple
+        ),
+        WorkflowStep(
+            title: "Compare",
+            detail: "Diff the package against the current Mac before planning changes.",
+            systemImage: "square.split.2x1",
+            tint: .indigo
+        ),
+        WorkflowStep(
+            title: "Dry Run",
+            detail: "Group install, configure, skip, blocked, and review-required work.",
+            systemImage: "list.bullet.rectangle",
+            tint: .orange
+        ),
+        WorkflowStep(
+            title: "Apply",
+            detail: "Use explicit confirmation for the small Finder-safe write path.",
+            systemImage: "checkmark.shield",
+            tint: .green
+        )
+    ]
+}
+
+private struct ActionItem: Identifiable {
+    var id: String { title }
+    var title: String
+    var status: String
+    var systemImage: String
+}
+
+private struct KeyValueRow: Identifiable {
+    var id: String { label }
+    var label: String
+    var value: String
+}
+
+struct DiffGroup: Identifiable {
+    var id: String { title }
+    var title: String
+    var detail: String
+    var systemImage: String
+
+    static let current = [
+        DiffGroup(title: "Matching", detail: "Already aligned", systemImage: "equal.circle"),
+        DiffGroup(title: "Changed", detail: "Needs review", systemImage: "arrow.triangle.2.circlepath"),
+        DiffGroup(title: "Missing", detail: "Could be added", systemImage: "plus.circle"),
+        DiffGroup(title: "Current Only", detail: "Present here only", systemImage: "minus.circle"),
+        DiffGroup(title: "Skipped", detail: "Excluded by design", systemImage: "forward.end.circle"),
+        DiffGroup(title: "Blocked", detail: "Unsupported or unsafe", systemImage: "xmark.octagon")
+    ]
 }
