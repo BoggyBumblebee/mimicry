@@ -91,7 +91,7 @@ The completion log should stay concise. Detailed technical documentation lives i
 | 2026-08-12 | Phase 1 completion: capabilities shell, provider registry, testable CLI support target, CLI smoke tests, and macOS CI workflow | Done | `3ee1fa3` | `swift build`, `swift test`, `xcodegen generate`, `xcodebuild ... build`, `xcodebuild ... test`, app launch check, `swift run mimicry --help`, `swift run mimicry doctor`, `git diff --check` |
 | 2026-08-12 | SonarCloud setup: project properties, analysis workflow, coverage/test report converters, artifact ignore rule, and README badges | Done | `95e0408` | `bash -n`, `python3 -m py_compile`, `xcodegen generate`, `xcodebuild ... test`, report conversion scripts, `git diff --check` |
 | 2026-08-12 | SonarCloud activation: project analysis and README badge endpoints are live | Done | `3b43182` | SonarCloud quality gate and coverage badge endpoints return measure SVGs |
-| 2026-08-12 | Phase 2A doctor diagnostics: read-only capability detector, PASS/WARN/INFO/BLOCKED output, fake-runner tests, and CLI wiring | Done | pending commit | `swift test`, `swift run mimicry doctor`, `xcodegen generate`, `xcodebuild ... test`, coverage gate 90.26%, `git diff --check` |
+| 2026-08-12 | Phase 2A doctor diagnostics: read-only capability detector, PASS/WARN/INFO/BLOCKED output, fake-runner tests, and CLI wiring | Done | `ac361f4` | `swift test`, `swift run mimicry doctor`, `xcodegen generate`, `xcodebuild ... test`, coverage gate 90.26%, `git diff --check` |
 
 ## Product Goal
 
