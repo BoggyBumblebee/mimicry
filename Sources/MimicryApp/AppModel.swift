@@ -5,6 +5,7 @@ import MimicryCore
 @MainActor
 final class AppModel: ObservableObject {
     @Published private(set) var snapshotState: AppCommandState<AppSnapshotSummary> = .idle
+    @Published private(set) var packageState: AppCommandState<AppPackageSummary> = .idle
     @Published private(set) var diagnosticsState: AppCommandState<AppDiagnosticsSummary> = .idle
     @Published private(set) var recentPackages: [RecentPackage]
 
@@ -26,9 +27,27 @@ final class AppModel: ObservableObject {
         do {
             let summary = try await runtime.createSnapshot(outputURL.standardizedFileURL)
             snapshotState = .succeeded(summary)
+            packageState = .running
+            do {
+                packageState = .succeeded(try await runtime.openPackage(summary.url))
+            } catch {
+                packageState = .failed(error.readableMessage)
+            }
             recentPackages = historyStore.record(summary.url)
         } catch {
             snapshotState = .failed(error.readableMessage)
+        }
+    }
+
+    func openPackage(at packageURL: URL) async {
+        packageState = .running
+
+        do {
+            let summary = try await runtime.openPackage(packageURL.standardizedFileURL)
+            packageState = .succeeded(summary)
+            recentPackages = historyStore.record(summary.url)
+        } catch {
+            packageState = .failed(error.readableMessage)
         }
     }
 
@@ -60,12 +79,17 @@ enum AppCommandState<Value: Equatable>: Equatable {
 
 struct AppRuntime: Sendable {
     var createSnapshot: @Sendable (URL) async throws -> AppSnapshotSummary
+    var openPackage: @Sendable (URL) async throws -> AppPackageSummary
     var detectCapabilities: @Sendable () async throws -> MacCapabilities
 
     static let live = AppRuntime(
         createSnapshot: { outputURL in
             let result = try await MimicrySnapshotBuilder().writeSnapshot(to: outputURL)
             return AppSnapshotSummary(package: result.package)
+        },
+        openPackage: { packageURL in
+            let package = try MimicryPackageStore().read(from: packageURL)
+            return AppPackageSummary(package: package)
         },
         detectCapabilities: {
             await MacCapabilitiesDetector().detect()
@@ -106,6 +130,105 @@ struct AppSnapshotSummary: Equatable, Sendable {
             warningCount: snapshot.sections.reduce(0) { $0 + $1.warnings.count },
             createdAt: package.manifest.createdAt,
             source: "\(snapshot.source.hostname) (\(snapshot.source.username))"
+        )
+    }
+}
+
+struct AppPackageSummary: Equatable, Sendable {
+    var url: URL
+    var packageName: String
+    var createdAt: Date
+    var source: String
+    var macOSVersion: String
+    var architecture: String
+    var sectionCount: Int
+    var itemCount: Int
+    var warningCount: Int
+    var safeCount: Int
+    var reviewCount: Int
+    var excludedCount: Int
+    var unsupportedCount: Int
+    var sections: [PackageSectionSummary]
+
+    init(
+        url: URL,
+        packageName: String,
+        createdAt: Date,
+        source: String,
+        macOSVersion: String,
+        architecture: String,
+        sectionCount: Int,
+        itemCount: Int,
+        warningCount: Int,
+        safeCount: Int,
+        reviewCount: Int,
+        excludedCount: Int,
+        unsupportedCount: Int,
+        sections: [PackageSectionSummary]
+    ) {
+        self.url = url
+        self.packageName = packageName
+        self.createdAt = createdAt
+        self.source = source
+        self.macOSVersion = macOSVersion
+        self.architecture = architecture
+        self.sectionCount = sectionCount
+        self.itemCount = itemCount
+        self.warningCount = warningCount
+        self.safeCount = safeCount
+        self.reviewCount = reviewCount
+        self.excludedCount = excludedCount
+        self.unsupportedCount = unsupportedCount
+        self.sections = sections
+    }
+
+    init(package: MimicryPackage) {
+        let snapshot = package.snapshot
+        let items = snapshot.sections.flatMap(\.items)
+        let reviewClassifications: Set<ConfigurationClassification> = [
+            .potentiallySensitive,
+            .userMustReview,
+            .machineSpecific,
+            .hardwareSpecific,
+            .managed
+        ]
+
+        self.init(
+            url: package.url,
+            packageName: package.url.lastPathComponent,
+            createdAt: package.manifest.createdAt,
+            source: "\(snapshot.source.hostname) (\(snapshot.source.username))",
+            macOSVersion: snapshot.source.macOSVersion,
+            architecture: snapshot.source.architecture,
+            sectionCount: snapshot.sections.count,
+            itemCount: items.count,
+            warningCount: snapshot.sections.reduce(0) { $0 + $1.warnings.count },
+            safeCount: items.filter { $0.classification == .safeConfiguration }.count,
+            reviewCount: items.filter { reviewClassifications.contains($0.classification) }.count,
+            excludedCount: items.filter { $0.classification == .excluded }.count,
+            unsupportedCount: items.filter { $0.classification == .unsupported }.count,
+            sections: snapshot.sections.map(PackageSectionSummary.init(section:))
+        )
+    }
+}
+
+struct PackageSectionSummary: Equatable, Sendable, Identifiable {
+    var id: String { name }
+    var name: String
+    var itemCount: Int
+    var warningCount: Int
+
+    init(name: String, itemCount: Int, warningCount: Int) {
+        self.name = name
+        self.itemCount = itemCount
+        self.warningCount = warningCount
+    }
+
+    init(section: SnapshotSection) {
+        self.init(
+            name: section.displayName,
+            itemCount: section.items.count,
+            warningCount: section.warnings.count
         )
     }
 }

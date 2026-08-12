@@ -169,18 +169,32 @@ private struct SnapshotView: View {
         TwoColumnPanels {
             ContentPanel(title: "Capture", systemImage: "camera.viewfinder") {
                 VStack(alignment: .leading, spacing: 14) {
-                    Button {
-                        guard let outputURL = SnapshotSavePanel.outputURL() else {
-                            return
+                    HStack(spacing: 10) {
+                        Button {
+                            guard let outputURL = SnapshotSavePanel.outputURL() else {
+                                return
+                            }
+                            Task {
+                                await model.createSnapshot(to: outputURL)
+                            }
+                        } label: {
+                            Label("Create Snapshot...", systemImage: "camera.viewfinder")
                         }
-                        Task {
-                            await model.createSnapshot(to: outputURL)
+                        .buttonStyle(.borderedProminent)
+                        .disabled(model.snapshotState.isRunning)
+
+                        Button {
+                            guard let packageURL = PackageOpenPanel.packageURL() else {
+                                return
+                            }
+                            Task {
+                                await model.openPackage(at: packageURL)
+                            }
+                        } label: {
+                            Label("Open Package...", systemImage: "folder")
                         }
-                    } label: {
-                        Label("Create Snapshot...", systemImage: "camera.viewfinder")
+                        .disabled(model.packageState.isRunning)
                     }
-                    .buttonStyle(.borderedProminent)
-                    .disabled(model.snapshotState.isRunning)
 
                     ActionList(items: [
                         ActionItem(title: "Environment", status: "Captured", systemImage: "macbook"),
@@ -194,8 +208,12 @@ private struct SnapshotView: View {
                 }
             }
 
-            ContentPanel(title: "Package Review", systemImage: "doc.text.magnifyingglass") {
+            ContentPanel(title: "Snapshot Result", systemImage: "checkmark.seal") {
                 SnapshotResultView(state: model.snapshotState)
+            }
+
+            ContentPanel(title: "Package Review", systemImage: "doc.text.magnifyingglass") {
+                PackageInspectView(state: model.packageState)
             }
         }
     }
@@ -243,19 +261,41 @@ private struct HistoryView: View {
     var body: some View {
         TwoColumnPanels {
             ContentPanel(title: "Recent Packages", systemImage: "archivebox") {
-                if model.recentPackages.isEmpty {
-                    EmptyStateRow(
-                        title: "No packages yet",
-                        detail: "Snapshot activity will appear here.",
-                        systemImage: "tray"
-                    )
-                } else {
-                    VStack(alignment: .leading, spacing: 12) {
-                        ForEach(model.recentPackages) { package in
-                            RecentPackageRow(package: package)
+                VStack(alignment: .leading, spacing: 14) {
+                    Button {
+                        guard let packageURL = PackageOpenPanel.packageURL() else {
+                            return
+                        }
+                        Task {
+                            await model.openPackage(at: packageURL)
+                        }
+                    } label: {
+                        Label("Open Package...", systemImage: "folder")
+                    }
+                    .disabled(model.packageState.isRunning)
+
+                    if model.recentPackages.isEmpty {
+                        EmptyStateRow(
+                            title: "No packages yet",
+                            detail: "Snapshot and open-package activity will appear here.",
+                            systemImage: "tray"
+                        )
+                    } else {
+                        VStack(alignment: .leading, spacing: 12) {
+                            ForEach(model.recentPackages) { package in
+                                RecentPackageRow(package: package) {
+                                    Task {
+                                        await model.openPackage(at: package.url)
+                                    }
+                                }
+                            }
                         }
                     }
                 }
+            }
+
+            ContentPanel(title: "Current Package", systemImage: "doc.text.magnifyingglass") {
+                PackageInspectView(state: model.packageState)
             }
 
             ContentPanel(title: "Recent Milestones", systemImage: "clock.arrow.circlepath") {
@@ -495,6 +535,76 @@ private struct SnapshotResultView: View {
     }
 }
 
+private struct PackageInspectView: View {
+    var state: AppCommandState<AppPackageSummary>
+
+    var body: some View {
+        switch state {
+        case .idle:
+            EmptyStateRow(title: "No package open", detail: "Open a .mimicry package to inspect its contents.", systemImage: "doc")
+        case .running:
+            ProgressRow(title: "Opening package", detail: "Validating manifest and checksums.")
+        case let .succeeded(summary):
+            VStack(alignment: .leading, spacing: 14) {
+                KeyValueList(rows: [
+                    KeyValueRow(label: "Package", value: summary.packageName),
+                    KeyValueRow(label: "Source", value: summary.source),
+                    KeyValueRow(label: "macOS", value: summary.macOSVersion),
+                    KeyValueRow(label: "Architecture", value: summary.architecture),
+                    KeyValueRow(label: "Sections", value: "\(summary.sectionCount)"),
+                    KeyValueRow(label: "Items", value: "\(summary.itemCount)"),
+                    KeyValueRow(label: "Warnings", value: "\(summary.warningCount)")
+                ])
+
+                LazyVGrid(columns: [GridItem(.adaptive(minimum: 130), spacing: 10)], spacing: 10) {
+                    CompactStatusTile(title: "Safe", value: "\(summary.safeCount)", systemImage: "checkmark.circle")
+                    CompactStatusTile(title: "Review", value: "\(summary.reviewCount)", systemImage: "person.crop.circle.badge.exclamationmark")
+                    CompactStatusTile(title: "Excluded", value: "\(summary.excludedCount)", systemImage: "forward.end.circle")
+                    CompactStatusTile(title: "Unsupported", value: "\(summary.unsupportedCount)", systemImage: "xmark.octagon")
+                }
+
+                if !summary.sections.isEmpty {
+                    Divider()
+                    VStack(alignment: .leading, spacing: 10) {
+                        ForEach(summary.sections.prefix(8)) { section in
+                            PackageSectionRow(section: section)
+                        }
+                    }
+                }
+
+                Button {
+                    NSWorkspace.shared.activateFileViewerSelecting([summary.url])
+                } label: {
+                    Label("Reveal", systemImage: "folder")
+                }
+            }
+        case let .failed(message):
+            FailureRow(title: "Package could not be opened", detail: message)
+        }
+    }
+}
+
+private struct PackageSectionRow: View {
+    var section: PackageSectionSummary
+
+    var body: some View {
+        HStack(spacing: 10) {
+            Image(systemName: "rectangle.stack")
+                .frame(width: 22)
+                .foregroundStyle(.secondary)
+            Text(section.name)
+            Spacer()
+            Text("\(section.itemCount) items")
+                .foregroundStyle(.secondary)
+            if section.warningCount > 0 {
+                Text("\(section.warningCount) warnings")
+                    .foregroundStyle(.orange)
+            }
+        }
+        .font(.subheadline)
+    }
+}
+
 private struct DiagnosticsResultView: View {
     var state: AppCommandState<AppDiagnosticsSummary>
 
@@ -610,6 +720,7 @@ private struct CompactStatusTile: View {
 
 private struct RecentPackageRow: View {
     var package: RecentPackage
+    var open: () -> Void
 
     var body: some View {
         HStack(alignment: .top, spacing: 12) {
@@ -629,6 +740,12 @@ private struct RecentPackageRow: View {
 
             Spacer()
 
+            Button(action: open) {
+                Image(systemName: "doc.text.magnifyingglass")
+            }
+            .buttonStyle(.borderless)
+            .help("Inspect")
+
             Button {
                 NSWorkspace.shared.activateFileViewerSelecting([package.url])
             } label: {
@@ -637,6 +754,24 @@ private struct RecentPackageRow: View {
             .buttonStyle(.borderless)
             .help("Reveal")
         }
+    }
+}
+
+private enum PackageOpenPanel {
+    @MainActor
+    static func packageURL() -> URL? {
+        let panel = NSOpenPanel()
+        panel.canChooseFiles = false
+        panel.canChooseDirectories = true
+        panel.allowsMultipleSelection = false
+        panel.title = "Open Mimicry Package"
+        panel.prompt = "Open"
+
+        guard panel.runModal() == .OK, let url = panel.url else {
+            return nil
+        }
+
+        return url
     }
 }
 

@@ -105,6 +105,9 @@ final class MimicryAppContentTests: XCTestCase {
                         source: "source-mac (cmb)"
                     )
                 },
+                openPackage: { url in
+                    AppPackageSummary(package: Self.samplePackage(url: url))
+                },
                 detectCapabilities: { Self.sampleCapabilities }
             ),
             historyStore: PackageHistoryStore(
@@ -124,17 +127,78 @@ final class MimicryAppContentTests: XCTestCase {
             createdAt: Date(timeIntervalSince1970: 1_788_000_000),
             source: "source-mac (cmb)"
         )))
+        XCTAssertEqual(
+            model.packageState,
+            .succeeded(AppPackageSummary(package: Self.samplePackage(url: URL(fileURLWithPath: "/tmp/gui-snapshot.mimicry"))))
+        )
     }
 
     func testSnapshotActionReportsFailure() async {
         let model = Self.makeModel(runtime: AppRuntime(
             createSnapshot: { _ in throw AppTestError.snapshotFailed },
+            openPackage: { _ in AppPackageSummary(package: Self.samplePackage()) },
             detectCapabilities: { Self.sampleCapabilities }
         ))
 
         await model.createSnapshot(to: URL(fileURLWithPath: "/tmp/gui-snapshot.mimicry"))
 
         XCTAssertEqual(model.snapshotState, .failed("Snapshot test failure"))
+        XCTAssertTrue(model.recentPackages.isEmpty)
+    }
+
+    func testOpenPackageRecordsHistoryAndSummarizesContents() async {
+        let model = Self.makeModel(
+            runtime: AppRuntime(
+                createSnapshot: { url in
+                    AppSnapshotSummary(
+                        url: url,
+                        sectionCount: 0,
+                        itemCount: 0,
+                        warningCount: 0,
+                        createdAt: Date(timeIntervalSince1970: 0),
+                        source: "unused"
+                    )
+                },
+                openPackage: { _ in AppPackageSummary(package: Self.samplePackage()) },
+                detectCapabilities: { Self.sampleCapabilities }
+            ),
+            historyStore: PackageHistoryStore(
+                load: { [] },
+                record: { [RecentPackage(url: $0)] }
+            )
+        )
+
+        await model.openPackage(at: URL(fileURLWithPath: "/tmp/opened.mimicry"))
+
+        let expected = AppPackageSummary(package: Self.samplePackage())
+        XCTAssertEqual(model.packageState, .succeeded(expected))
+        XCTAssertEqual(model.recentPackages.map(\.name), ["opened.mimicry"])
+        XCTAssertEqual(expected.safeCount, 1)
+        XCTAssertEqual(expected.reviewCount, 2)
+        XCTAssertEqual(expected.excludedCount, 1)
+        XCTAssertEqual(expected.unsupportedCount, 1)
+        XCTAssertEqual(expected.sections.map(\.name), ["Environment", "Browser"])
+    }
+
+    func testOpenPackageReportsFailure() async {
+        let model = Self.makeModel(runtime: AppRuntime(
+            createSnapshot: { url in
+                AppSnapshotSummary(
+                    url: url,
+                    sectionCount: 0,
+                    itemCount: 0,
+                    warningCount: 0,
+                    createdAt: Date(timeIntervalSince1970: 0),
+                    source: "unused"
+                )
+            },
+            openPackage: { _ in throw AppTestError.packageFailed },
+            detectCapabilities: { Self.sampleCapabilities }
+        ))
+
+        await model.openPackage(at: URL(fileURLWithPath: "/tmp/opened.mimicry"))
+
+        XCTAssertEqual(model.packageState, .failed("Package test failure"))
         XCTAssertTrue(model.recentPackages.isEmpty)
     }
 
@@ -150,6 +214,7 @@ final class MimicryAppContentTests: XCTestCase {
                     source: "unused"
                 )
             },
+            openPackage: { _ in AppPackageSummary(package: Self.samplePackage()) },
             detectCapabilities: { Self.sampleCapabilities }
         ))
 
@@ -184,6 +249,7 @@ final class MimicryAppContentTests: XCTestCase {
                     source: "preview"
                 )
             },
+            openPackage: { _ in AppPackageSummary(package: samplePackage()) },
             detectCapabilities: { sampleCapabilities }
         ),
         historyStore: PackageHistoryStore = PackageHistoryStore(load: { [] }, record: { [RecentPackage(url: $0)] })
@@ -221,12 +287,58 @@ final class MimicryAppContentTests: XCTestCase {
             managementState: .managed
         )
     )
+
+    nonisolated private static func samplePackage(
+        url: URL = URL(fileURLWithPath: "/tmp/opened.mimicry")
+    ) -> MimicryPackage {
+        MimicryPackage(
+            url: url,
+            manifest: MimicryPackageManifest(createdAt: Date(timeIntervalSince1970: 1_788_000_100)),
+            snapshot: MimicrySnapshot(
+                mimicryVersion: "0.1.0",
+                createdAt: Date(timeIntervalSince1970: 1_788_000_100),
+                source: SnapshotSource(
+                    macOSVersion: "15.5",
+                    architecture: "arm64",
+                    hardwareModel: "Mac16,1",
+                    hostname: "source-mac",
+                    username: "cmb"
+                ),
+                sections: [
+                    SnapshotSection(
+                        identifier: "environment",
+                        displayName: "Environment",
+                        items: [
+                            SnapshotItem(key: "safe", value: .string("ok")),
+                            SnapshotItem(key: "review", value: .string("check"), classification: .userMustReview),
+                            SnapshotItem(key: "excluded", value: .string("redacted"), classification: .excluded)
+                        ],
+                        warnings: [SnapshotWarning(code: "environment.warning", message: "Review environment")]
+                    ),
+                    SnapshotSection(
+                        identifier: "browser",
+                        displayName: "Browser",
+                        items: [
+                            SnapshotItem(key: "managed", value: .string("managed"), classification: .managed),
+                            SnapshotItem(key: "unsupported", value: .absent, classification: .unsupported)
+                        ]
+                    )
+                ]
+            )
+        )
+    }
 }
 
 private enum AppTestError: LocalizedError {
     case snapshotFailed
+    case packageFailed
 
     var errorDescription: String? {
-        "Snapshot test failure"
+        switch self {
+        case .snapshotFailed:
+            "Snapshot test failure"
+        case .packageFailed:
+            "Package test failure"
+        }
     }
 }

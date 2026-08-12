@@ -147,7 +147,7 @@ Exit criteria:
 
 ## Phase 6: Hardening, UI Completion, Compatibility, Documentation
 
-Status: In progress for the GUI. The first polish slice replaced the Phase 1 placeholder with a native dashboard-style SwiftUI shell, section-specific Snapshot/Apply/Compare/History/Diagnostics surfaces, a Settings scene, and app smoke/content tests. Phase 6A wires the app to the existing snapshot engine for package creation, local diagnostics refresh, and recent package history. Compare, dry-run apply, confirmed apply, and browser export handoff wiring remain future Phase 6 work.
+Status: In progress for the GUI. The first polish slice replaced the Phase 1 placeholder with a native dashboard-style SwiftUI shell, section-specific Snapshot/Apply/Compare/History/Diagnostics surfaces, a Settings scene, and app smoke/content tests. Phase 6A wires the app to the existing snapshot engine for package creation, local diagnostics refresh, and recent package history. Phase 6B opens existing `.mimicry` packages, validates package contents through the core package store, and surfaces source metadata, section summaries, warnings, and safety/review/excluded/unsupported counts in Snapshot and History. Compare, dry-run apply, confirmed apply, and browser export handoff wiring remain future Phase 6 work.
 
 Goal: make the MVP trustworthy enough to use on real Macs.
 
