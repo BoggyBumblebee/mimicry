@@ -102,6 +102,30 @@ public enum SnapshotValue: Codable, Equatable, Sendable {
     case absent
 }
 
+public extension SnapshotValue {
+    var renderedDescription: String {
+        switch self {
+        case let .string(value):
+            return value
+        case let .bool(value):
+            return value ? "true" : "false"
+        case let .int(value):
+            return String(value)
+        case let .double(value):
+            return String(value)
+        case let .stringArray(values):
+            return values.isEmpty ? "[]" : values.joined(separator: ", ")
+        case let .object(values):
+            return values
+                .sorted { $0.key < $1.key }
+                .map { "\($0.key)=\($0.value)" }
+                .joined(separator: ", ")
+        case .absent:
+            return "absent"
+        }
+    }
+}
+
 public enum ConfigurationClassification: String, Codable, Equatable, Sendable {
     case safeConfiguration
     case potentiallySensitive

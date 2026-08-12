@@ -139,8 +139,42 @@ final class MimicryCLISmokeTests: XCTestCase {
         XCTAssertTrue(output.contains("No system settings were changed."))
     }
 
-    func testPlaceholderApplyNamesRequestedSnapshotPath() {
-        XCTAssertTrue(MimicryCLIResponses.apply(packagePath: "target.mimicry", dryRun: true).contains("Dry run: true"))
+    func testApplyDryRunRendersActionPlanWithoutMutatingSystemState() throws {
+        let temporaryDirectory = try makeTemporaryDirectory()
+        let packageURL = temporaryDirectory.appendingPathComponent("fixture.mimicry")
+        let snapshot = MimicrySnapshot.phaseOneCLIFixture()
+        _ = try MimicryPackageStore().write(snapshot: snapshot, to: packageURL)
+
+        let output = try MimicryCLIResponses.apply(
+            packagePath: packageURL.path,
+            dryRun: true,
+            currentSnapshot: .currentDiffFixture()
+        )
+
+        XCTAssertTrue(output.contains("Mimicry Apply Dry Run"))
+        XCTAssertTrue(output.contains("Snapshot: \(packageURL.path)"))
+        XCTAssertTrue(output.contains("Actions: 5"))
+        XCTAssertTrue(output.contains("- install: 0"))
+        XCTAssertTrue(output.contains("- configure: 0"))
+        XCTAssertTrue(output.contains("- skip: 2"))
+        XCTAssertTrue(output.contains("- blocked: 1"))
+        XCTAssertTrue(output.contains("- requires user action: 2"))
+        XCTAssertTrue(output.contains("SKIP"))
+        XCTAssertTrue(output.contains("icloud.auth-state is excluded"))
+        XCTAssertTrue(output.contains("BLOCKED"))
+        XCTAssertTrue(output.contains("finder.legacy-setting is marked unsupported"))
+        XCTAssertTrue(output.contains("REQUIRES USER ACTION"))
+        XCTAssertTrue(output.contains("hostname: would change"))
+        XCTAssertTrue(output.contains("username: would add"))
+        XCTAssertTrue(output.contains("No system settings were changed."))
+    }
+
+    func testApplyWithoutDryRunRefusesToMutateSystemState() throws {
+        let output = try MimicryCLIResponses.apply(packagePath: "target.mimicry", dryRun: false)
+
+        XCTAssertTrue(output.contains("Apply is not implemented yet"))
+        XCTAssertTrue(output.contains("Use --dry-run"))
+        XCTAssertTrue(output.contains("No system settings were changed."))
     }
 
     private func makeTemporaryDirectory() throws -> URL {

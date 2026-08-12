@@ -107,6 +107,17 @@ struct Apply: AsyncParsableCommand {
     var dryRun = false
 
     func run() async throws {
-        print(MimicryCLIResponses.apply(packagePath: packagePath, dryRun: dryRun))
+        let currentSnapshot: MimicrySnapshot?
+        if dryRun {
+            let result = try await MimicrySnapshotBuilder().buildSnapshot()
+            currentSnapshot = result.snapshot
+        } else {
+            currentSnapshot = nil
+        }
+        print(try MimicryCLIResponses.apply(
+            packagePath: packagePath,
+            dryRun: dryRun,
+            currentSnapshot: currentSnapshot
+        ))
     }
 }

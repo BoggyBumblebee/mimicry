@@ -67,12 +67,75 @@ public enum MimicryCLIResponses {
         return SnapshotDiffReportRenderer(packagePath: packagePath, report: report).render()
     }
 
-    public static func apply(packagePath: String, dryRun: Bool) -> String {
-        """
-        Apply is not implemented yet.
-        Snapshot: \(packagePath)
-        Dry run: \(dryRun)
-        """
+    public static func apply(
+        packagePath: String,
+        dryRun: Bool,
+        currentSnapshot: MimicrySnapshot? = nil
+    ) throws -> String {
+        guard dryRun else {
+            return """
+            Mimicry Apply
+            =============
+            Snapshot: \(packagePath)
+            Apply is not implemented yet. Use --dry-run to preview the action plan.
+            No system settings were changed.
+            """
+        }
+
+        let package = try MimicryPackageStore().read(from: URL(fileURLWithPath: packagePath))
+        let currentSnapshot = currentSnapshot ?? package.snapshot
+        let plan = SnapshotApplyPlanner().plan(
+            reference: package.snapshot,
+            current: currentSnapshot
+        )
+        return SnapshotApplyPlanRenderer(packagePath: packagePath, plan: plan).render()
+    }
+}
+
+private struct SnapshotApplyPlanRenderer {
+    var packagePath: String
+    var plan: SnapshotApplyPlan
+
+    func render() -> String {
+        var lines = [
+            "Mimicry Apply Dry Run",
+            "=====================",
+            "Snapshot: \(packagePath)",
+            "Reference: \(plan.diff.referenceSource.hostname) (\(plan.diff.referenceSource.username))",
+            "Current: \(plan.diff.currentSource.hostname) (\(plan.diff.currentSource.username))",
+            "Actions: \(plan.actions.count)",
+            "",
+            "Action Summary",
+            "--------------"
+        ]
+
+        for kind in PlannedActionKind.displayOrder {
+            lines.append("- \(kind.displayName): \(plan.count(kind))")
+        }
+
+        lines.append("")
+        lines.append("Plan")
+        lines.append("----")
+
+        if plan.actions.isEmpty {
+            lines.append("No actions are required.")
+        } else {
+            for kind in PlannedActionKind.displayOrder {
+                let actions = plan.actions.filter { $0.kind == kind }
+                guard !actions.isEmpty else {
+                    continue
+                }
+
+                lines.append(kind.groupTitle)
+                for action in actions {
+                    lines.append("  - \(action.providerIdentifier): \(action.summary)")
+                }
+            }
+        }
+
+        lines.append("")
+        lines.append("No system settings were changed.")
+        return lines.joined(separator: "\n")
     }
 }
 
@@ -148,13 +211,13 @@ private struct SnapshotDiffReportRenderer {
         let detail: String
         switch item.status {
         case .matching:
-            detail = item.referenceValue?.inspectionDescription ?? "absent"
+            detail = item.referenceValue?.renderedDescription ?? "absent"
         case .changed:
-            detail = "\(item.referenceValue?.inspectionDescription ?? "absent") -> \(item.currentValue?.inspectionDescription ?? "absent")"
+            detail = "\(item.referenceValue?.renderedDescription ?? "absent") -> \(item.currentValue?.renderedDescription ?? "absent")"
         case .missing:
-            detail = "snapshot has \(item.referenceValue?.inspectionDescription ?? "absent"); current is missing"
+            detail = "snapshot has \(item.referenceValue?.renderedDescription ?? "absent"); current is missing"
         case .currentOnly:
-            detail = "current has \(item.currentValue?.inspectionDescription ?? "absent"); not in snapshot"
+            detail = "current has \(item.currentValue?.renderedDescription ?? "absent"); not in snapshot"
         case .skipped:
             detail = "snapshot marks this item as excluded"
         case .unsupported:
@@ -256,7 +319,7 @@ private struct SnapshotInspectionReport {
         }
 
         return ["  \(title)"] + items.map { item in
-            "    - \(item.key) = \(item.value.inspectionDescription) [\(item.classification.displayName), \(item.applicability.displayName)]"
+            "    - \(item.key) = \(item.value.renderedDescription) [\(item.classification.displayName), \(item.applicability.displayName)]"
         }
     }
 
@@ -314,30 +377,6 @@ private extension SnapshotItem {
             return .reviewRequired
         case .safeConfiguration:
             return .captured
-        }
-    }
-}
-
-private extension SnapshotValue {
-    var inspectionDescription: String {
-        switch self {
-        case let .string(value):
-            return value
-        case let .bool(value):
-            return value ? "true" : "false"
-        case let .int(value):
-            return String(value)
-        case let .double(value):
-            return String(value)
-        case let .stringArray(values):
-            return values.isEmpty ? "[]" : values.joined(separator: ", ")
-        case let .object(values):
-            return values
-                .sorted { $0.key < $1.key }
-                .map { "\($0.key)=\($0.value)" }
-                .joined(separator: ", ")
-        case .absent:
-            return "absent"
         }
     }
 }
@@ -417,6 +456,46 @@ private extension SnapshotDiffStatus {
             return "Skipped Items"
         case .unsupported:
             return "Unsupported Items"
+        }
+    }
+}
+
+private extension PlannedActionKind {
+    static let displayOrder: [PlannedActionKind] = [
+        .install,
+        .configure,
+        .skip,
+        .blocked,
+        .requiresUserAction
+    ]
+
+    var displayName: String {
+        switch self {
+        case .install:
+            return "install"
+        case .configure:
+            return "configure"
+        case .skip:
+            return "skip"
+        case .blocked:
+            return "blocked"
+        case .requiresUserAction:
+            return "requires user action"
+        }
+    }
+
+    var groupTitle: String {
+        switch self {
+        case .install:
+            return "INSTALL"
+        case .configure:
+            return "CONFIGURE"
+        case .skip:
+            return "SKIP"
+        case .blocked:
+            return "BLOCKED"
+        case .requiresUserAction:
+            return "REQUIRES USER ACTION"
         }
     }
 }

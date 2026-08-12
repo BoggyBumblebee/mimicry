@@ -73,7 +73,7 @@ Exit criteria:
 
 ## Phase 3: End-To-End Read-Only Trust Loop
 
-Status: In progress. Read-only Finder inventory, Terminal metadata inventory, shell secret scanning, iCloud status metadata, rich snapshot inspection, and snapshot diff are implemented. Dry-run apply and the first safe apply slice are next.
+Status: In progress. Read-only Finder inventory, Terminal metadata inventory, shell secret scanning, iCloud status metadata, rich snapshot inspection, snapshot diff, and dry-run apply planning are implemented. The first safe apply slice is next.
 
 Goal: make the existing providers manually testable as a real workflow before adding more provider breadth.
 

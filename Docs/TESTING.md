@@ -15,6 +15,7 @@ swift run mimicry snapshot --output /tmp/mimicry-phase2b-smoke.mimicry
 swift run mimicry inspect /tmp/mimicry-phase2b-smoke.mimicry
 swift run mimicry validate /tmp/mimicry-phase2b-smoke.mimicry
 swift run mimicry diff /tmp/mimicry-phase2b-smoke.mimicry
+swift run mimicry apply /tmp/mimicry-phase2b-smoke.mimicry --dry-run
 git diff --check
 ```
 
@@ -60,11 +61,14 @@ swift run mimicry snapshot --output ~/Desktop/manual-test.mimicry
 swift run mimicry validate ~/Desktop/manual-test.mimicry
 swift run mimicry inspect ~/Desktop/manual-test.mimicry
 swift run mimicry diff ~/Desktop/manual-test.mimicry
+swift run mimicry apply ~/Desktop/manual-test.mimicry --dry-run
 ```
 
 `inspect` should show package metadata, source Mac metadata, section totals, classification and applicability summaries, captured items, review-required items, excluded items, unsupported items, warnings, and the no-mutation statement.
 
 `diff` should compare the snapshot to the current Mac and show matching, changed, missing, current-only, skipped, unsupported, snapshot-warning, and current-warning groups without mutating system settings.
+
+`apply --dry-run` should render install, configure, skip, blocked, and requires-user-action groups without mutating system settings. Non-dry-run apply remains blocked until the first safe apply slice lands.
 
 ## Provider Tests
 
@@ -88,8 +92,9 @@ swift run mimicry diff ~/Desktop/manual-test.mimicry
 - snapshot output summarizes the created `.mimicry` package
 - inspect renders a human-readable audit of captured, review-required, excluded, unsupported, and warning items
 - diff renders a human-readable comparison against the current snapshot
+- apply dry-run renders a human-readable action plan
+- non-dry-run apply refuses to mutate system state
 - validate can read a fixture `.mimicry` package
-- remaining placeholder apply command echoes requested snapshot paths without mutating system state
 
 ## Compatibility Tests
 

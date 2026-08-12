@@ -105,6 +105,8 @@ Phase 3 now prioritizes manually testable vertical slices over adding provider b
 
 Slice B adds a core snapshot diff engine and CLI report. The engine compares a stored reference snapshot with a fresh current snapshot, classifies items as matching, changed, missing, current-only, skipped, or unsupported, and carries snapshot/current warnings forward into the report. The CLI builds the current snapshot in memory and does not write or mutate system settings.
 
+Slice C adds a core dry-run apply planner. It consumes the diff report and maps non-matching items into install, configure, skip, blocked, and requires-user-action actions. The CLI renders those groups for `apply --dry-run`; non-dry-run apply remains blocked until the first narrow mutation slice is implemented.
+
 ## Existing Project Context
 
 The implementation should learn from nearby BoggyBumblebee projects:
