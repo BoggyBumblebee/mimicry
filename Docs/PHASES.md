@@ -105,15 +105,15 @@ Exit criteria:
 
 ## Phase 4: Browser Providers
 
-Status: In progress. Phase 4A adds read-only Safari bookmark inventory, Phase 4B adds read-only multi-profile Chrome bookmark inventory, Phase 4C adds read-only multi-profile Firefox bookmark inventory, Phase 4D adds browser-specific dry-run restore planning, Phase 4E adds a reviewable browser bookmark export handoff, and Phase 4F links dry-run browser previews to the exact export command. These browser slices include fixture coverage, URL query/fragment redaction, idempotency-aware planning by sanitized bookmark fingerprint, and manual browser-native import artifacts without profile mutation.
+Status: Done for the review-first browser provider phase. Phase 4A adds read-only Safari bookmark inventory, Phase 4B adds read-only multi-profile Chrome bookmark inventory, Phase 4C adds read-only multi-profile Firefox bookmark inventory, Phase 4D adds browser-specific dry-run restore planning, Phase 4E adds a reviewable browser bookmark export handoff, and Phase 4F links dry-run browser previews to the exact export command. These browser slices include fixture coverage, URL query/fragment redaction, idempotency-aware planning by sanitized bookmark fingerprint, and manual browser-native import artifacts without profile mutation. Direct browser profile mutation remains intentionally deferred beyond Phase 4.
 
 Goal: support safe browser state without copying private profiles.
 
 Deliverables:
 
-- Safari provider with iCloud-aware bookmark/configuration strategy. Read-only bookmark inventory, dry-run import planning, and HTML export handoff are implemented; iCloud strategy and direct profile import remain future Phase 4 work.
-- Chrome provider with multi-profile bookmark support. Read-only multi-profile bookmark inventory, dry-run import planning, and HTML export handoff are implemented; direct profile import remains future Phase 4 work.
-- Firefox provider with multi-profile bookmark support. Read-only multi-profile bookmark inventory, dry-run import planning, and HTML export handoff are implemented; direct profile import remains future Phase 4 work.
+- Safari provider with iCloud-aware bookmark/configuration strategy. Read-only bookmark inventory, dry-run import planning, and HTML export handoff are implemented; iCloud account handling and direct profile import remain deferred because Mimicry does not copy private browser profiles.
+- Chrome provider with multi-profile bookmark support. Read-only multi-profile bookmark inventory, dry-run import planning, and HTML export handoff are implemented; direct profile import remains deferred because Mimicry does not copy private browser profiles.
+- Firefox provider with multi-profile bookmark support. Read-only multi-profile bookmark inventory, dry-run import planning, and HTML export handoff are implemented; direct profile import remains deferred because Mimicry does not copy private browser profiles.
 - Browser snapshot inspection and restore planning. Dry-run restore planning is implemented for bookmark fingerprints; dry-run output now points to the HTML export command for manual import while profile mutation remains deferred.
 - Tests using fixture bookmark files.
 

@@ -82,7 +82,7 @@ Terminal providers must refuse or redact likely secrets by default.
 
 Homebrew absence, `mas` absence, unreadable Finder preferences, unreadable Terminal files, Terminal files containing secret-like values, iCloud states requiring user action, and missing or unreadable Safari, Chrome, or Firefox bookmarks are represented as warnings or absent/redacted/reviewable values inside the relevant section. Snapshot, inspect, validate, diff, dry-run apply, and browser bookmark export do not install, remove, upgrade, sign in, write preferences, edit shell files, read synced document contents, import bookmarks into a browser profile, or change system settings.
 
-`mimicry apply --dry-run` now renders browser bookmark import previews for Safari, Chrome, and Firefox sections. These previews compare sanitized bookmark fingerprints by title, folder path, and URL, then summarize how many bookmarks appear importable, already present, skipped, or blocked. When browser bookmark work is present, the dry-run report includes a `Browser Bookmark Handoff` section with the exact `mimicry export-browser-bookmarks` command and a default `mimicry-browser-bookmarks.html` output path. Browser actions remain review-only `requiresUserAction` actions; direct bookmark import/apply is not implemented yet.
+`mimicry apply --dry-run` now renders browser bookmark import previews for Safari, Chrome, and Firefox sections. These previews compare sanitized bookmark fingerprints by title, folder path, and URL, then summarize how many bookmarks appear importable, already present, skipped, or blocked. When browser bookmark work is present, the dry-run report includes a `Browser Bookmark Handoff` section with the exact `mimicry export-browser-bookmarks` command and a default `mimicry-browser-bookmarks.html` output path. Browser actions remain review-only `requiresUserAction` actions; direct browser profile import/apply is intentionally deferred beyond Phase 4.
 
 `mimicry export-browser-bookmarks <snapshot.mimicry> --output <bookmarks.html>` writes a Netscape-style bookmark HTML file from sanitized Safari, Chrome, and Firefox bookmark items. The exporter deduplicates by title/folder path/URL fingerprint, skips unavailable browser sources, skips invalid or non-HTTP(S) bookmark URLs, and writes only the requested artifact for manual review and browser-native import. It does not write browser profiles, browser databases, browser preferences, cookies, passwords, sessions, or account state.
 
@@ -112,7 +112,7 @@ The Safari provider captures read-only bookmark and folder metadata from `~/Libr
 
 Safari bookmark data is marked `userMustReview` and `userSpecific`. Bookmark URL query strings and fragments are removed before capture because they can contain search terms, tracking data, tokens, or other private state. Missing bookmarks, unreadable plist data, and URL redaction counts are surfaced as warnings or source metadata.
 
-The provider does not read cookies, history, passwords, sessions, autofill data, profile encryption keys, extensions, website storage, or Safari account state. Safari bookmark dry-run import preview and HTML export handoff are implemented; real direct import/apply is not implemented yet.
+The provider does not read cookies, history, passwords, sessions, autofill data, profile encryption keys, extensions, website storage, or Safari account state. Safari bookmark dry-run import preview and HTML export handoff are implemented; direct browser profile import/apply is intentionally deferred beyond Phase 4.
 
 ## Chrome Bookmarks
 
@@ -120,7 +120,7 @@ The Chrome provider captures read-only bookmark and folder metadata from direct 
 
 Chrome bookmark data is marked `userMustReview` and `userSpecific`. Bookmark URL query strings and fragments are removed before capture because they can contain search terms, tracking data, tokens, or other private state. Missing profiles, unreadable bookmark JSON, and URL redaction counts are surfaced as warnings or source metadata.
 
-The provider does not read Chrome cookies, history, passwords, sessions, autofill data, profile encryption keys, extensions, website storage, account state, Sync state, Local State, Preferences, or browser databases. Chrome bookmark dry-run import preview and HTML export handoff are implemented; real direct import/apply is not implemented yet.
+The provider does not read Chrome cookies, history, passwords, sessions, autofill data, profile encryption keys, extensions, website storage, account state, Sync state, Local State, Preferences, or browser databases. Chrome bookmark dry-run import preview and HTML export handoff are implemented; direct browser profile import/apply is intentionally deferred beyond Phase 4.
 
 ## Firefox Bookmarks
 
@@ -128,4 +128,4 @@ The Firefox provider captures read-only bookmark and folder metadata from Firefo
 
 Firefox bookmark data is marked `userMustReview` and `userSpecific`. Bookmark URL query strings and fragments are removed before capture because they can contain search terms, tracking data, tokens, or other private state. Missing profiles, unreadable SQLite bookmark data, and URL redaction counts are surfaced as warnings or source metadata.
 
-The provider does not read Firefox cookies, history pages beyond bookmark URL rows, passwords, sessions, autofill data, profile encryption keys, extensions, website storage, account state, Sync state, preferences, form history, downloads, or login databases. Firefox bookmark dry-run import preview and HTML export handoff are implemented; real direct import/apply is not implemented yet.
+The provider does not read Firefox cookies, history pages beyond bookmark URL rows, passwords, sessions, autofill data, profile encryption keys, extensions, website storage, account state, Sync state, preferences, form history, downloads, or login databases. Firefox bookmark dry-run import preview and HTML export handoff are implemented; direct browser profile import/apply is intentionally deferred beyond Phase 4.

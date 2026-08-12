@@ -124,6 +124,8 @@ Phase 4E adds `BrowserBookmarkImportExporter` and the `mimicry export-browser-bo
 
 Phase 4F links the dry-run preview to that export handoff. Browser preview actions now name `export-browser-bookmarks`, and the CLI dry-run renderer adds a `Browser Bookmark Handoff` section with the exact package path and suggested `mimicry-browser-bookmarks.html` output path whenever Safari, Chrome, or Firefox bookmark work is present. This keeps the review-first workflow discoverable without adding browser profile mutation.
 
+Phase 4 is complete as a review-first browser workflow: capture sanitized bookmark metadata, inspect and plan the restore, then generate a manual browser-native HTML import artifact. Direct browser profile mutation remains outside Phase 4 and should only return through a future explicitly reviewed apply design.
+
 ## Existing Project Context
 
 The implementation should learn from nearby BoggyBumblebee projects:

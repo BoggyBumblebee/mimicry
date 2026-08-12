@@ -81,6 +81,8 @@ For Firefox, `inspect` should show a `firefox` section when profile bookmark dat
 
 `export-browser-bookmarks` should write only the requested HTML artifact. It should export sanitized Safari, Chrome, and Firefox HTTP(S) bookmarks, skip duplicate fingerprints, skip unavailable sources and invalid URLs, and report that no browser profile, database, or system setting was changed.
 
+Phase 4 closeout validation should verify that the latest pushed commit has green GitHub Actions CI and SonarCloud workflow runs, a SonarCloud Quality Gate of OK, zero open Sonar issues, and no pending browser profile mutation path.
+
 After reviewing the dry-run, the first real apply slice can be tested manually:
 
 ```bash
@@ -151,4 +153,4 @@ Verify that snapshots cannot accidentally contain:
 
 ## Test Boundary
 
-Provider apply tests should use fakes, fixtures, and temporary directories. Manual real apply behavior must require explicit user confirmation and should begin with the narrow Finder-safe path.
+Provider apply tests should use fakes, fixtures, and temporary directories. Manual real apply behavior must require explicit user confirmation and should begin with the narrow Finder-safe path. Direct browser profile mutation remains outside the completed Phase 4 test boundary.

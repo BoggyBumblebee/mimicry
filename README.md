@@ -20,7 +20,7 @@ The full build prompt is tracked in [PROMPT.md](PROMPT.md).
 
 ## Current Status
 
-Phase 0, Phase 1, Phase 2, and Phase 3 are done. Phase 4 has started with read-only Safari, Chrome, and Firefox bookmark inventory, browser-specific dry-run restore planning, a reviewable browser bookmark export handoff, and dry-run guidance that points directly to that handoff. Mimicry can create, validate, richly inspect, diff, dry-run apply, export sanitized browser bookmarks, and perform the first narrow confirmed apply from a `.mimicry` snapshot package containing environment, Homebrew, App Store, Finder, Terminal, iCloud, Safari, Chrome, and Firefox sections.
+Phase 0, Phase 1, Phase 2, Phase 3, and Phase 4 are done. Phase 4 completed the review-first browser provider path with read-only Safari, Chrome, and Firefox bookmark inventory, browser-specific dry-run restore planning, a reviewable browser bookmark export handoff, and dry-run guidance that points directly to that handoff. Mimicry can create, validate, richly inspect, diff, dry-run apply, export sanitized browser bookmarks, and perform the first narrow confirmed apply from a `.mimicry` snapshot package containing environment, Homebrew, App Store, Finder, Terminal, iCloud, Safari, Chrome, and Firefox sections.
 
 Current scaffold includes:
 
@@ -34,7 +34,7 @@ Current scaffold includes:
 - GitHub Actions workflow for macOS validation.
 - SonarCloud configuration, coverage conversion, and README quality badges.
 
-Most commands remain non-mutating. Safari, Chrome, and Firefox bookmarks are currently read-only and review-required; bookmark URL query strings and fragments are removed during capture, dry-run planning summarizes importable, already-present, skipped, and blocked bookmark work, and browser dry-run output recommends the exact `export-browser-bookmarks` command for a reviewable HTML handoff. Mimicry still does not write browser profiles, browser databases, cookies, passwords, sessions, or browser account state. The only current mutation path is `mimicry apply --confirm`, which is intentionally limited to safe Finder preferences, writes a backup first when changes are required, and does not delete preferences or copy user-specific values.
+Most commands remain non-mutating. Safari, Chrome, and Firefox bookmarks are read-only and review-required; bookmark URL query strings and fragments are removed during capture, dry-run planning summarizes importable, already-present, skipped, and blocked bookmark work, and browser dry-run output recommends the exact `export-browser-bookmarks` command for a reviewable HTML handoff. Mimicry still does not write browser profiles, browser databases, cookies, passwords, sessions, or browser account state; direct browser profile mutation is intentionally outside the completed Phase 4 scope. The only current mutation path is `mimicry apply --confirm`, which is intentionally limited to safe Finder preferences, writes a backup first when changes are required, and does not delete preferences or copy user-specific values.
 
 ## Documentation
 
