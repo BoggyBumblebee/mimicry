@@ -47,6 +47,7 @@ Primary tools:
 
 - Swift 6 and Swift Package Manager for core modules, provider modules, and the CLI.
 - SwiftUI and AppKit integration where needed for a first-class macOS app.
+- macOS 15 as the minimum deployment target. Mimicry is intentionally not looking backward unless a narrow compatibility shim is cheap and safe.
 - Xcode as the main IDE, debugger, Instruments entry point, and UI test runner.
 - XcodeGen with `project.yml` so the Xcode project is reproducible and avoids noisy `.xcodeproj` churn.
 - GitHub Actions on macOS runners for build, unit test, and CLI validation.
@@ -196,7 +197,7 @@ Future providers:
 
 The snapshot format should be versioned, portable, inspectable, and human-readable.
 
-Initial format:
+Initial format: a macOS package bundle with the extension `.mimicry`.
 
 ```text
 my-mac.mimicry/
@@ -205,6 +206,7 @@ my-mac.mimicry/
     logs/
     browser/
     applications/
+    encrypted/
     checksums.json
     README.md
 ```
@@ -223,6 +225,44 @@ Minimum metadata:
 - checksums
 
 The snapshot must not contain passwords, tokens, cookies, private keys, browser session data, Keychain contents, or cloud credentials by default.
+
+### Export Container Decision
+
+Begin with a package bundle rather than a plain directory or compressed archive.
+
+Package bundle benefits:
+
+- Appears as a single file-like artifact in Finder.
+- Can be opened by Mimicry through a custom document type.
+- Keeps internal JSON, logs, browser files, encrypted sections, and checksums inspectable during development.
+- Avoids compression/extraction friction during early schema migration work.
+- Leaves room to mark it as a document package in the app's exported Uniform Type Identifier.
+
+Package bundle tradeoffs:
+
+- Not as convenient for transfer through tools that expect a single byte stream.
+- Can be partially copied if moved by low-level tools incorrectly.
+- Needs checksums so Mimicry can detect missing or modified internal files.
+
+Plain directory tradeoffs:
+
+- Easiest to inspect and generate.
+- Least polished for users.
+- Too easy to accidentally separate internal files from the snapshot.
+
+Compressed archive tradeoffs:
+
+- Best for transfer, sharing, and immutable export.
+- Less convenient for inspection, diffing, partial repair, and migration.
+- Better as a later `mimicry export --archive` option than the primary working format.
+
+Decision: `.mimicry` starts as an inspectable package bundle. Add compressed export/import once the schema and checksum model have stabilized.
+
+### Encryption Decision
+
+Encrypted optional snapshot sections are part of the MVP.
+
+MVP encryption should be explicit and opt-in. The normal snapshot remains secret-free. If a provider supports a sensitive-but-useful setting later, Mimicry can place that section under `encrypted/` with clear user approval, strong warnings, checksums, and a separate restore path. No provider may silently place secrets in either the normal snapshot or encrypted sections.
 
 ## Delivery Plan
 
@@ -255,6 +295,7 @@ Deliverables:
 - SwiftUI app target with empty navigation shell.
 - CLI target with command placeholders.
 - Core models for snapshots, providers, validation, planned actions, apply results, and logs.
+- `.mimicry` package-bundle reader/writer with manifest, checksum, and optional encrypted-section placeholders.
 - `CommandRunner` abstraction with a fake implementation for tests.
 - Initial documentation stubs in `Docs/`.
 
@@ -290,8 +331,8 @@ Goal: cover the first user-visible macOS configuration areas.
 
 Deliverables:
 
-- Finder provider for stable, reproducible preferences.
-- Terminal provider for shell metadata and reviewed shell configuration files.
+- Finder provider for as many stable, reproducible preferences as can be safely detected, validated, and reapplied.
+- Terminal provider for shell metadata and reviewed shell configuration files, covering as much as can be safely classified.
 - Secret scanner for shell/profile files.
 - iCloud provider that detects state and reports required user action without copying authentication.
 - Snapshot inspection for captured, excluded, unsupported, and user-action-required items.
@@ -331,6 +372,7 @@ Deliverables:
 - Apply engine for Homebrew, App Store, Finder, Terminal, and browser MVP providers.
 - Pre-change backup strategy for mutable files/preferences.
 - Operation log and partial rollback support where feasible.
+- Opt-in encrypted section support for providers that have an explicitly approved sensitive payload.
 - Idempotency tests for repeated apply planning.
 
 Exit criteria:
@@ -400,11 +442,40 @@ Mimicry must never:
 - bypass MDM
 - claim complete macOS reproduction without explicit provider support and tests
 
-## Open Questions
+## Privileged Helper Policy
 
-- Minimum macOS deployment target: start from macOS 14 or 15 unless a required API forces a different baseline.
-- Whether the `.mimicry` export should begin as a directory, package bundle, or compressed archive.
-- Whether app and CLI ship together in one `.app` bundle or the CLI is installed separately.
-- How much privileged helper support is needed for MVP versus later hardening.
-- Which Finder and Terminal settings are safe enough for the first apply implementation.
-- Whether encrypted optional snapshot sections belong in MVP or post-MVP.
+A privileged helper means a separate helper executable, usually a LaunchDaemon, that runs with elevated privileges and performs operations the normal app or CLI cannot safely perform as the current user.
+
+Mimicry should not start with a persistent privileged helper. The MVP should prefer:
+
+- user-context actions whenever possible
+- documented Apple APIs
+- explicit user approval
+- clear manual instructions where macOS requires a human step
+- one-shot authorization or `sudo`-style CLI workflows only when a provider genuinely requires it
+
+Reasons to avoid a helper in the MVP:
+
+- It increases signing, entitlement, install, update, and uninstall complexity.
+- It expands the security review surface.
+- It can make users nervous because it adds a root-capable background component.
+- Many MVP actions, including Homebrew, App Store detection, Finder preferences, Terminal files, bookmarks, dry-run planning, and snapshot inspection, do not need a root daemon.
+
+When a privileged helper becomes necessary, it should use the modern Service Management model with helper resources inside the app bundle, registered through `SMAppService`, and controlled through System Settings approval. The helper must expose a narrow XPC API, never accept raw shell strings, log every privileged action, and be optional unless the selected provider requires it.
+
+Candidate post-MVP helper use cases:
+
+- system-wide settings that require root
+- installing or managing LaunchDaemons
+- managed backup/rollback of protected files
+- system-level configuration profile workflows where appropriate
+- carefully scoped operations that cannot be expressed safely through user-context commands
+
+## Resolved Decisions
+
+- Minimum macOS deployment target: macOS 15.
+- `.mimicry` export format: start as an inspectable macOS package bundle; add compressed archive export later.
+- App and CLI shipping model: together for now. The CLI should live with the app bundle or be installed from it, but share the same core implementation.
+- Privileged helper support: avoid a persistent helper in the MVP. Add one later only when a provider proves it needs root-level background capability.
+- Finder and Terminal scope: capture and apply as much as possible, but only when each setting is explicitly classified, validated, backed up where practical, and covered by tests.
+- Encrypted optional snapshot sections: MVP, opt-in, and never a license to silently capture secrets.
