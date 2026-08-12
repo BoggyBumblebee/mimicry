@@ -77,7 +77,7 @@ The completion log should stay concise. Detailed technical documentation lives i
 | 2026-08-12 | Repository setup and prompt import | Done | `927b8cf` | `PROMPT.md` imported, committed, and pushed to `origin/main` |
 | 2026-08-12 | Phase 0: Discovery and decisions | Done | `d434a0b` | Roadmap, toolchain, Xcode distribution setup, safety rules, open decisions, and resolved decisions documented and pushed to `origin/main` |
 | 2026-08-12 | Phase 1 scaffold slice: Swift package, XcodeGen config, SwiftUI shell, CLI shell, core models, `.mimicry` package store, fake command runner, and tests | Done | `a5289a3` | `swift test`, `xcodegen generate`, `xcodebuild ... build`, `xcodebuild ... test`, `swift run mimicry --help`, `swift run mimicry doctor` |
-| 2026-08-12 | Documentation split: README map plus focused docs under `Docs/` | Done | `98b7297` | README and docs reorganized; links and status checked |
+| 2026-08-12 | Documentation split: README map plus focused docs under `Docs/` | Done | `35976a9` | README and docs reorganized; links and status checked |
 
 ## Product Goal
 
