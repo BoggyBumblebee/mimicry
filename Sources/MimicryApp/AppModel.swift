@@ -8,6 +8,7 @@ final class AppModel: ObservableObject {
     @Published private(set) var packageState: AppCommandState<AppPackageSummary> = .idle
     @Published private(set) var compareState: AppCommandState<AppCompareSummary> = .idle
     @Published private(set) var applyPlanState: AppCommandState<AppApplyPlanSummary> = .idle
+    @Published private(set) var browserBookmarkExportState: AppCommandState<AppBrowserBookmarkExportSummary> = .idle
     @Published private(set) var diagnosticsState: AppCommandState<AppDiagnosticsSummary> = .idle
     @Published private(set) var recentPackages: [RecentPackage]
 
@@ -30,6 +31,9 @@ final class AppModel: ObservableObject {
             let summary = try await runtime.createSnapshot(outputURL.standardizedFileURL)
             snapshotState = .succeeded(summary)
             packageState = .running
+            compareState = .idle
+            applyPlanState = .idle
+            browserBookmarkExportState = .idle
             do {
                 packageState = .succeeded(try await runtime.openPackage(summary.url))
             } catch {
@@ -45,6 +49,7 @@ final class AppModel: ObservableObject {
         packageState = .running
         compareState = .idle
         applyPlanState = .idle
+        browserBookmarkExportState = .idle
 
         do {
             let summary = try await runtime.openPackage(packageURL.standardizedFileURL)
@@ -52,6 +57,24 @@ final class AppModel: ObservableObject {
             recentPackages = historyStore.record(summary.url)
         } catch {
             packageState = .failed(error.readableMessage)
+        }
+    }
+
+    func exportBrowserBookmarksForCurrentPackage(to outputURL: URL) async {
+        guard case let .succeeded(package) = packageState else {
+            browserBookmarkExportState = .failed("Open a package before exporting browser bookmarks.")
+            return
+        }
+
+        browserBookmarkExportState = .running
+
+        do {
+            browserBookmarkExportState = .succeeded(try await runtime.exportBrowserBookmarks(
+                package.url,
+                outputURL.standardizedFileURL
+            ))
+        } catch {
+            browserBookmarkExportState = .failed(error.readableMessage)
         }
     }
 
@@ -116,6 +139,7 @@ struct AppRuntime: Sendable {
     var openPackage: @Sendable (URL) async throws -> AppPackageSummary
     var comparePackage: @Sendable (URL) async throws -> AppCompareSummary
     var planApplyPackage: @Sendable (URL) async throws -> AppApplyPlanSummary
+    var exportBrowserBookmarks: @Sendable (URL, URL) async throws -> AppBrowserBookmarkExportSummary
     var detectCapabilities: @Sendable () async throws -> MacCapabilities
 
     static let live = AppRuntime(
@@ -138,6 +162,11 @@ struct AppRuntime: Sendable {
             let currentSnapshot = try await MimicrySnapshotBuilder().buildSnapshot().snapshot
             let plan = SnapshotApplyPlanner().plan(reference: package.snapshot, current: currentSnapshot)
             return AppApplyPlanSummary(packageURL: package.url, plan: plan)
+        },
+        exportBrowserBookmarks: { packageURL, outputURL in
+            let package = try MimicryPackageStore().read(from: packageURL)
+            let result = try BrowserBookmarkImportExporter().export(snapshot: package.snapshot, to: outputURL)
+            return AppBrowserBookmarkExportSummary(packageURL: package.url, result: result)
         },
         detectCapabilities: {
             await MacCapabilitiesDetector().detect()
@@ -359,6 +388,26 @@ struct AppPlannedActionSummary: Equatable, Sendable, Identifiable {
         provider = action.providerIdentifier
         detail = action.summary
         requiresElevation = action.requiresElevation
+    }
+}
+
+struct AppBrowserBookmarkExportSummary: Equatable, Sendable {
+    var packageURL: URL
+    var outputURL: URL
+    var browserSectionCount: Int
+    var exportedBookmarkCount: Int
+    var skippedDuplicateCount: Int
+    var skippedInvalidCount: Int
+    var skippedUnavailableSourceCount: Int
+
+    init(packageURL: URL, result: BrowserBookmarkImportResult) {
+        self.packageURL = packageURL
+        outputURL = result.outputURL
+        browserSectionCount = result.summary.browserSectionCount
+        exportedBookmarkCount = result.summary.exportedBookmarkCount
+        skippedDuplicateCount = result.summary.skippedDuplicateCount
+        skippedInvalidCount = result.summary.skippedInvalidCount
+        skippedUnavailableSourceCount = result.summary.skippedUnavailableSourceCount
     }
 }
 

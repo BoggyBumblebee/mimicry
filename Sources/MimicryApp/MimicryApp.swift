@@ -243,6 +243,25 @@ private struct ApplyView: View {
             ContentPanel(title: "Dry Run Plan", systemImage: "checklist") {
                 ApplyPlanResultView(state: model.applyPlanState)
             }
+
+            ContentPanel(title: "Browser Handoff", systemImage: "safari") {
+                VStack(alignment: .leading, spacing: 14) {
+                    Button {
+                        guard let outputURL = BrowserBookmarkSavePanel.outputURL(packageURL: currentPackageURL) else {
+                            return
+                        }
+                        Task {
+                            await model.exportBrowserBookmarksForCurrentPackage(to: outputURL)
+                        }
+                    } label: {
+                        Label("Export HTML...", systemImage: "square.and.arrow.up")
+                    }
+                    .buttonStyle(.bordered)
+                    .disabled(!canExportBrowserBookmarks)
+
+                    BrowserBookmarkExportResultView(state: model.browserBookmarkExportState)
+                }
+            }
         }
     }
 
@@ -256,6 +275,22 @@ private struct ApplyView: View {
         }
 
         return false
+    }
+
+    private var canExportBrowserBookmarks: Bool {
+        guard !model.browserBookmarkExportState.isRunning else {
+            return false
+        }
+
+        return currentPackageURL != nil
+    }
+
+    private var currentPackageURL: URL? {
+        guard case let .succeeded(package) = model.packageState else {
+            return nil
+        }
+
+        return package.url
     }
 }
 
@@ -860,6 +895,43 @@ private struct ApplyActionRow: View {
     }
 }
 
+private struct BrowserBookmarkExportResultView: View {
+    var state: AppCommandState<AppBrowserBookmarkExportSummary>
+
+    var body: some View {
+        switch state {
+        case .idle:
+            EmptyStateRow(
+                title: "No browser export yet",
+                detail: "Write a reviewable HTML import file from captured browser bookmarks.",
+                systemImage: "safari"
+            )
+        case .running:
+            ProgressRow(title: "Exporting browser bookmarks", detail: "Writing an HTML handoff without touching browser profiles.")
+        case let .succeeded(summary):
+            VStack(alignment: .leading, spacing: 14) {
+                KeyValueList(rows: [
+                    KeyValueRow(label: "Package", value: summary.packageURL.lastPathComponent),
+                    KeyValueRow(label: "Output", value: summary.outputURL.lastPathComponent),
+                    KeyValueRow(label: "Browser sections", value: "\(summary.browserSectionCount)"),
+                    KeyValueRow(label: "Bookmarks exported", value: "\(summary.exportedBookmarkCount)"),
+                    KeyValueRow(label: "Duplicates skipped", value: "\(summary.skippedDuplicateCount)"),
+                    KeyValueRow(label: "Invalid URLs skipped", value: "\(summary.skippedInvalidCount)"),
+                    KeyValueRow(label: "Unavailable skipped", value: "\(summary.skippedUnavailableSourceCount)")
+                ])
+
+                Button {
+                    NSWorkspace.shared.activateFileViewerSelecting([summary.outputURL])
+                } label: {
+                    Label("Reveal", systemImage: "folder")
+                }
+            }
+        case let .failed(message):
+            FailureRow(title: "Browser export failed", detail: message)
+        }
+    }
+}
+
 private struct DiagnosticsResultView: View {
     var state: AppCommandState<AppDiagnosticsSummary>
 
@@ -1073,6 +1145,29 @@ private enum SnapshotSavePanel {
         }
 
         return url.deletingPathExtension().appendingPathExtension("mimicry")
+    }
+}
+
+private enum BrowserBookmarkSavePanel {
+    @MainActor
+    static func outputURL(packageURL: URL?) -> URL? {
+        let panel = NSSavePanel()
+        panel.nameFieldStringValue = "mimicry-browser-bookmarks.html"
+        panel.canCreateDirectories = true
+        panel.isExtensionHidden = false
+        panel.title = "Export Browser Bookmarks"
+        panel.prompt = "Export"
+        panel.directoryURL = packageURL?.deletingLastPathComponent()
+
+        guard panel.runModal() == .OK, let url = panel.url else {
+            return nil
+        }
+
+        if url.pathExtension == "html" {
+            return url
+        }
+
+        return url.deletingPathExtension().appendingPathExtension("html")
     }
 }
 

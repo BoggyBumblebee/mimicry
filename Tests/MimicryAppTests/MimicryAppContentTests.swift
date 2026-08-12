@@ -114,6 +114,9 @@ final class MimicryAppContentTests: XCTestCase {
                 planApplyPackage: { url in
                     Self.sampleApplyPlanSummary(url: url)
                 },
+                exportBrowserBookmarks: { packageURL, outputURL in
+                    Self.sampleBrowserBookmarkExportSummary(packageURL: packageURL, outputURL: outputURL)
+                },
                 detectCapabilities: { Self.sampleCapabilities }
             ),
             historyStore: PackageHistoryStore(
@@ -145,6 +148,9 @@ final class MimicryAppContentTests: XCTestCase {
             openPackage: { _ in AppPackageSummary(package: Self.samplePackage()) },
             comparePackage: { _ in Self.sampleCompareSummary() },
             planApplyPackage: { _ in Self.sampleApplyPlanSummary() },
+            exportBrowserBookmarks: { packageURL, outputURL in
+                Self.sampleBrowserBookmarkExportSummary(packageURL: packageURL, outputURL: outputURL)
+            },
             detectCapabilities: { Self.sampleCapabilities }
         ))
 
@@ -170,6 +176,9 @@ final class MimicryAppContentTests: XCTestCase {
                 openPackage: { _ in AppPackageSummary(package: Self.samplePackage()) },
                 comparePackage: { url in Self.sampleCompareSummary(url: url) },
                 planApplyPackage: { url in Self.sampleApplyPlanSummary(url: url) },
+                exportBrowserBookmarks: { packageURL, outputURL in
+                    Self.sampleBrowserBookmarkExportSummary(packageURL: packageURL, outputURL: outputURL)
+                },
                 detectCapabilities: { Self.sampleCapabilities }
             ),
             historyStore: PackageHistoryStore(
@@ -205,6 +214,9 @@ final class MimicryAppContentTests: XCTestCase {
             openPackage: { _ in throw AppTestError.packageFailed },
             comparePackage: { _ in Self.sampleCompareSummary() },
             planApplyPackage: { _ in Self.sampleApplyPlanSummary() },
+            exportBrowserBookmarks: { packageURL, outputURL in
+                Self.sampleBrowserBookmarkExportSummary(packageURL: packageURL, outputURL: outputURL)
+            },
             detectCapabilities: { Self.sampleCapabilities }
         ))
 
@@ -238,6 +250,9 @@ final class MimicryAppContentTests: XCTestCase {
                 openPackage: { url in AppPackageSummary(package: Self.samplePackage(url: url)) },
                 comparePackage: { url in Self.sampleCompareSummary(url: url) },
                 planApplyPackage: { url in Self.sampleApplyPlanSummary(url: url) },
+                exportBrowserBookmarks: { packageURL, outputURL in
+                    Self.sampleBrowserBookmarkExportSummary(packageURL: packageURL, outputURL: outputURL)
+                },
                 detectCapabilities: { Self.sampleCapabilities }
             ),
             historyStore: PackageHistoryStore(
@@ -275,6 +290,9 @@ final class MimicryAppContentTests: XCTestCase {
             openPackage: { url in AppPackageSummary(package: Self.samplePackage(url: url)) },
             comparePackage: { _ in throw AppTestError.compareFailed },
             planApplyPackage: { _ in Self.sampleApplyPlanSummary() },
+            exportBrowserBookmarks: { packageURL, outputURL in
+                Self.sampleBrowserBookmarkExportSummary(packageURL: packageURL, outputURL: outputURL)
+            },
             detectCapabilities: { Self.sampleCapabilities }
         ))
 
@@ -308,6 +326,9 @@ final class MimicryAppContentTests: XCTestCase {
                 openPackage: { url in AppPackageSummary(package: Self.samplePackage(url: url)) },
                 comparePackage: { url in Self.sampleCompareSummary(url: url) },
                 planApplyPackage: { url in Self.sampleApplyPlanSummary(url: url) },
+                exportBrowserBookmarks: { packageURL, outputURL in
+                    Self.sampleBrowserBookmarkExportSummary(packageURL: packageURL, outputURL: outputURL)
+                },
                 detectCapabilities: { Self.sampleCapabilities }
             ),
             historyStore: PackageHistoryStore(
@@ -350,6 +371,9 @@ final class MimicryAppContentTests: XCTestCase {
             openPackage: { url in AppPackageSummary(package: Self.samplePackage(url: url)) },
             comparePackage: { url in Self.sampleCompareSummary(url: url) },
             planApplyPackage: { _ in throw AppTestError.applyFailed },
+            exportBrowserBookmarks: { packageURL, outputURL in
+                Self.sampleBrowserBookmarkExportSummary(packageURL: packageURL, outputURL: outputURL)
+            },
             detectCapabilities: { Self.sampleCapabilities }
         ))
 
@@ -357,6 +381,78 @@ final class MimicryAppContentTests: XCTestCase {
         await model.planApplyForCurrentPackage()
 
         XCTAssertEqual(model.applyPlanState, .failed("Apply test failure"))
+    }
+
+    func testBrowserBookmarkExportRequiresOpenPackage() async {
+        let model = Self.makeModel()
+
+        await model.exportBrowserBookmarksForCurrentPackage(to: URL(fileURLWithPath: "/tmp/bookmarks.html"))
+
+        XCTAssertEqual(model.browserBookmarkExportState, .failed("Open a package before exporting browser bookmarks."))
+    }
+
+    func testBrowserBookmarkExportSummarizesHTMLHandoff() async {
+        let model = Self.makeModel(
+            runtime: AppRuntime(
+                createSnapshot: { url in
+                    AppSnapshotSummary(
+                        url: url,
+                        sectionCount: 0,
+                        itemCount: 0,
+                        warningCount: 0,
+                        createdAt: Date(timeIntervalSince1970: 0),
+                        source: "unused"
+                    )
+                },
+                openPackage: { url in AppPackageSummary(package: Self.samplePackage(url: url)) },
+                comparePackage: { url in Self.sampleCompareSummary(url: url) },
+                planApplyPackage: { url in Self.sampleApplyPlanSummary(url: url) },
+                exportBrowserBookmarks: { packageURL, outputURL in
+                    Self.sampleBrowserBookmarkExportSummary(packageURL: packageURL, outputURL: outputURL)
+                },
+                detectCapabilities: { Self.sampleCapabilities }
+            ),
+            historyStore: PackageHistoryStore(
+                load: { [] },
+                record: { [RecentPackage(url: $0)] }
+            )
+        )
+
+        await model.openPackage(at: URL(fileURLWithPath: "/tmp/opened.mimicry"))
+        await model.exportBrowserBookmarksForCurrentPackage(to: URL(fileURLWithPath: "/tmp/bookmarks.html"))
+
+        XCTAssertEqual(
+            model.browserBookmarkExportState,
+            .succeeded(Self.sampleBrowserBookmarkExportSummary(
+                packageURL: URL(fileURLWithPath: "/tmp/opened.mimicry"),
+                outputURL: URL(fileURLWithPath: "/tmp/bookmarks.html")
+            ))
+        )
+    }
+
+    func testBrowserBookmarkExportReportsFailure() async {
+        let model = Self.makeModel(runtime: AppRuntime(
+            createSnapshot: { url in
+                AppSnapshotSummary(
+                    url: url,
+                    sectionCount: 0,
+                    itemCount: 0,
+                    warningCount: 0,
+                    createdAt: Date(timeIntervalSince1970: 0),
+                    source: "unused"
+                )
+            },
+            openPackage: { url in AppPackageSummary(package: Self.samplePackage(url: url)) },
+            comparePackage: { url in Self.sampleCompareSummary(url: url) },
+            planApplyPackage: { url in Self.sampleApplyPlanSummary(url: url) },
+            exportBrowserBookmarks: { _, _ in throw AppTestError.browserExportFailed },
+            detectCapabilities: { Self.sampleCapabilities }
+        ))
+
+        await model.openPackage(at: URL(fileURLWithPath: "/tmp/opened.mimicry"))
+        await model.exportBrowserBookmarksForCurrentPackage(to: URL(fileURLWithPath: "/tmp/bookmarks.html"))
+
+        XCTAssertEqual(model.browserBookmarkExportState, .failed("Browser export test failure"))
     }
 
     func testDiagnosticsRefreshSummarizesCapabilities() async {
@@ -374,6 +470,9 @@ final class MimicryAppContentTests: XCTestCase {
             openPackage: { _ in AppPackageSummary(package: Self.samplePackage()) },
             comparePackage: { _ in Self.sampleCompareSummary() },
             planApplyPackage: { _ in Self.sampleApplyPlanSummary() },
+            exportBrowserBookmarks: { packageURL, outputURL in
+                Self.sampleBrowserBookmarkExportSummary(packageURL: packageURL, outputURL: outputURL)
+            },
             detectCapabilities: { Self.sampleCapabilities }
         ))
 
@@ -411,6 +510,9 @@ final class MimicryAppContentTests: XCTestCase {
             openPackage: { _ in AppPackageSummary(package: samplePackage()) },
             comparePackage: { url in sampleCompareSummary(url: url) },
             planApplyPackage: { url in sampleApplyPlanSummary(url: url) },
+            exportBrowserBookmarks: { packageURL, outputURL in
+                sampleBrowserBookmarkExportSummary(packageURL: packageURL, outputURL: outputURL)
+            },
             detectCapabilities: { sampleCapabilities }
         ),
         historyStore: PackageHistoryStore = PackageHistoryStore(load: { [] }, record: { [RecentPackage(url: $0)] })
@@ -513,6 +615,25 @@ final class MimicryAppContentTests: XCTestCase {
         )
     }
 
+    nonisolated private static func sampleBrowserBookmarkExportSummary(
+        packageURL: URL = URL(fileURLWithPath: "/tmp/opened.mimicry"),
+        outputURL: URL = URL(fileURLWithPath: "/tmp/bookmarks.html")
+    ) -> AppBrowserBookmarkExportSummary {
+        AppBrowserBookmarkExportSummary(
+            packageURL: packageURL,
+            result: BrowserBookmarkImportResult(
+                outputURL: outputURL,
+                summary: BrowserBookmarkImportSummary(
+                    browserSectionCount: 3,
+                    exportedBookmarkCount: 7,
+                    skippedDuplicateCount: 1,
+                    skippedInvalidCount: 2,
+                    skippedUnavailableSourceCount: 1
+                )
+            )
+        )
+    }
+
     nonisolated private static func sampleCurrentSnapshot() -> MimicrySnapshot {
         MimicrySnapshot(
             mimicryVersion: "0.1.0",
@@ -551,6 +672,7 @@ private enum AppTestError: LocalizedError {
     case packageFailed
     case compareFailed
     case applyFailed
+    case browserExportFailed
 
     var errorDescription: String? {
         switch self {
@@ -562,6 +684,8 @@ private enum AppTestError: LocalizedError {
             "Compare test failure"
         case .applyFailed:
             "Apply test failure"
+        case .browserExportFailed:
+            "Browser export test failure"
         }
     }
 }
