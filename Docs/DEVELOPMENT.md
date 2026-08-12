@@ -55,7 +55,7 @@ SonarCloud requires a repository secret named `SONAR_TOKEN`. The SonarCloud proj
 
 The local pre-commit coverage gate should use the same source boundary as SonarCloud. The generated Xcode project includes both `MimicryCore` and `MimicryCLISupport` in the `Mimicry` scheme coverage targets, with both core and CLI support tests enabled. The thin `Sources/MimicryCLI/main.swift` ArgumentParser wrapper is excluded from Sonar coverage and validated through CLI smoke commands instead.
 
-The local pre-commit quality gate should preserve or improve the current SonarCloud baseline. Run the reusable Codex `commit-quality-gate` skill before committing, amending, or pushing code/configuration changes. The initial 2026-08-12 baseline was quality gate `OK`, 18 open code-smell issues, 0 bugs, 0 vulnerabilities, 315 minutes maintainability debt, and 0.0% duplication. Once SonarCloud reports a lower count, that lower live count becomes the baseline. New commits should not increase open issues, critical/blocker findings, maintainability debt, duplication, bugs, or vulnerabilities unless explicitly approved.
+The local pre-commit quality gate should preserve or improve the current SonarCloud baseline. Run the reusable Codex `commit-quality-gate` skill before committing, amending, or pushing code/configuration changes. As of 2026-08-12, after the first SonarCloud cleanup pass, the active bar is quality gate `OK`, 0 open issues, 0 bugs, 0 vulnerabilities, 0 code smells, 0 minutes maintainability debt, and 0.0% duplication. New commits should keep that zero-issue bar unless a regression is explicitly approved after review.
 
 ## Xcode Signing and Distribution Setup
 

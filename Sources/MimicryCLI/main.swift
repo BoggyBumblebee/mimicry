@@ -1,4 +1,5 @@
 import ArgumentParser
+import Foundation
 import MimicryCLISupport
 import MimicryCore
 
@@ -42,7 +43,10 @@ struct Snapshot: AsyncParsableCommand {
     var output: String?
 
     func run() async throws {
-        print(MimicryCLIResponses.snapshot(output: output))
+        let outputURL = URL(fileURLWithPath: output ?? "mimicry-snapshot.mimicry")
+            .standardizedFileURL
+        let result = try await MimicrySnapshotBuilder().writeSnapshot(to: outputURL)
+        print(MimicryCLIResponses.snapshot(package: result.package))
     }
 }
 

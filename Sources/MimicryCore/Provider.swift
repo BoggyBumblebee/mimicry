@@ -44,9 +44,14 @@ public struct DetectionContext: Sendable {
 
 public struct SnapshotContext: Sendable {
     public var commandRunner: CommandRunner
+    public var capabilities: MacCapabilities?
 
-    public init(commandRunner: CommandRunner) {
+    public init(
+        commandRunner: CommandRunner,
+        capabilities: MacCapabilities? = nil
+    ) {
         self.commandRunner = commandRunner
+        self.capabilities = capabilities
     }
 }
 

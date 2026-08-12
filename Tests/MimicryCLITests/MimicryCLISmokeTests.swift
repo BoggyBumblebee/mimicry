@@ -67,8 +67,21 @@ final class MimicryCLISmokeTests: XCTestCase {
         XCTAssertEqual(validateOutput, "Validation passed.")
     }
 
+    func testSnapshotResponseSummarizesCreatedPackage() {
+        let package = MimicryPackage(
+            url: URL(fileURLWithPath: "target.mimicry"),
+            manifest: MimicryPackageManifest(),
+            snapshot: MimicrySnapshot.phaseOneCLIFixture()
+        )
+        let output = MimicryCLIResponses.snapshot(package: package)
+
+        XCTAssertTrue(output.contains("Mimicry Snapshot Created"))
+        XCTAssertTrue(output.contains("target.mimicry"))
+        XCTAssertTrue(output.contains("Sections: 1"))
+        XCTAssertTrue(output.contains("No system settings were changed."))
+    }
+
     func testPlaceholderCommandsNameRequestedSnapshotPath() {
-        XCTAssertTrue(MimicryCLIResponses.snapshot(output: "target.mimicry").contains("target.mimicry"))
         XCTAssertTrue(MimicryCLIResponses.diff(packagePath: "target.mimicry").contains("target.mimicry"))
         XCTAssertTrue(MimicryCLIResponses.apply(packagePath: "target.mimicry", dryRun: true).contains("Dry run: true"))
     }

@@ -310,8 +310,8 @@ public struct MacCapabilityDeveloperToolPaths: Equatable, Sendable {
         xcodeSelect: URL? = nil,
         xcodebuild: URL? = nil
     ) {
-        self.xcodeSelect = xcodeSelect ?? MacCapabilityDefaultPathFactory.usrBin("xcode-select")
-        self.xcodebuild = xcodebuild ?? MacCapabilityDefaultPathFactory.usrBin("xcodebuild")
+        self.xcodeSelect = xcodeSelect ?? SystemToolPathFactory.usrBin("xcode-select")
+        self.xcodebuild = xcodebuild ?? SystemToolPathFactory.usrBin("xcodebuild")
     }
 
     public static let macOSDefault = MacCapabilityDeveloperToolPaths()
@@ -327,9 +327,9 @@ public struct MacCapabilityShellToolPaths: Equatable, Sendable {
         which: URL? = nil,
         env: URL? = nil
     ) {
-        self.id = id ?? MacCapabilityDefaultPathFactory.usrBin("id")
-        self.which = which ?? MacCapabilityDefaultPathFactory.usrBin("which")
-        self.env = env ?? MacCapabilityDefaultPathFactory.usrBin("env")
+        self.id = id ?? SystemToolPathFactory.usrBin("id")
+        self.which = which ?? SystemToolPathFactory.usrBin("which")
+        self.env = env ?? SystemToolPathFactory.usrBin("env")
     }
 
     public static let macOSDefault = MacCapabilityShellToolPaths()
@@ -345,9 +345,9 @@ public struct MacCapabilitySecurityToolPaths: Equatable, Sendable {
         fdesetup: URL? = nil,
         profiles: URL? = nil
     ) {
-        self.csrutil = csrutil ?? MacCapabilityDefaultPathFactory.usrBin("csrutil")
-        self.fdesetup = fdesetup ?? MacCapabilityDefaultPathFactory.usrBin("fdesetup")
-        self.profiles = profiles ?? MacCapabilityDefaultPathFactory.usrBin("profiles")
+        self.csrutil = csrutil ?? SystemToolPathFactory.usrBin("csrutil")
+        self.fdesetup = fdesetup ?? SystemToolPathFactory.usrBin("fdesetup")
+        self.profiles = profiles ?? SystemToolPathFactory.usrBin("profiles")
     }
 
     public static let macOSDefault = MacCapabilitySecurityToolPaths()
@@ -363,8 +363,8 @@ public struct MacCapabilityApplicationPaths: Equatable, Sendable {
     ) {
         self.iCloudDocumentsPathComponents = iCloudDocumentsPathComponents
         self.appStoreApplicationLocations = appStoreApplicationLocations ?? [
-            MacCapabilityDefaultPathFactory.systemApplication("App Store.app"),
-            MacCapabilityDefaultPathFactory.userApplication("App Store.app")
+            SystemToolPathFactory.systemApplication("App Store.app"),
+            SystemToolPathFactory.userApplication("App Store.app")
         ]
     }
 
@@ -385,42 +385,15 @@ public struct MacCapabilityHomebrewPrefixes: Equatable, Sendable {
         appleSilicon: URL? = nil,
         intel: URL? = nil
     ) {
-        self.appleSilicon = appleSilicon ?? MacCapabilityDefaultPathFactory.absoluteURL(["opt", "homebrew"])
-        self.intel = intel ?? MacCapabilityDefaultPathFactory.absoluteURL(["usr", "local"])
+        self.appleSilicon = appleSilicon ?? SystemToolPathFactory.absoluteURL(["opt", "homebrew"])
+        self.intel = intel ?? SystemToolPathFactory.absoluteURL(["usr", "local"])
     }
 
     public static let macOSDefault = MacCapabilityHomebrewPrefixes()
 }
 
-private enum MacCapabilityDefaultPathFactory {
-    static func usrBin(_ executableName: String) -> URL {
-        absoluteURL(["usr", "bin", executableName])
-    }
-
-    static func systemApplication(_ applicationName: String) -> URL {
-        absoluteURL(["System", "Applications", applicationName])
-    }
-
-    static func userApplication(_ applicationName: String) -> URL {
-        absoluteURL(["Applications", applicationName])
-    }
-
-    static func absoluteURL(_ components: [String]) -> URL {
-        components.reduce(URL(fileURLWithPath: NSOpenStepRootDirectory(), isDirectory: true)) { url, component in
-            url.appendingPathComponent(component)
-        }
-    }
-}
-
 private extension CommandResult {
     var combinedOutput: String {
         [standardOutput, standardError].joined(separator: "\n")
-    }
-}
-
-private extension String {
-    var trimmedNilIfEmpty: String? {
-        let value = trimmingCharacters(in: .whitespacesAndNewlines)
-        return value.isEmpty ? nil : value
     }
 }

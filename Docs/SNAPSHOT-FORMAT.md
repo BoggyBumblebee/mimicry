@@ -31,6 +31,16 @@ my-mac.mimicry/
 
 The snapshot must not contain passwords, tokens, cookies, private keys, browser session data, Keychain contents, or cloud credentials by default.
 
+## Current Sections
+
+Phase 2 writes these initial sections into `snapshot.json`:
+
+- `environment`: macOS, architecture, hardware model, hostname, username, admin status, tool availability, and service states.
+- `homebrew`: Homebrew availability, prefix, architecture, version, taps, formulae, and casks.
+- `app-store`: `mas` availability and App Store application inventory when `mas list` is available.
+
+These sections are read-only inventory. They do not perform installs, upgrades, sign-ins, preference writes, or other system mutation.
+
 ## Export Container Decision
 
 Begin with a package bundle rather than a plain directory or compressed archive.

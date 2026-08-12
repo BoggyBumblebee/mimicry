@@ -20,17 +20,17 @@ The full build prompt is tracked in [PROMPT.md](PROMPT.md).
 
 ## Current Status
 
-Phase 0, Phase 1, and Phase 2A capability detection and `doctor` diagnostics are done.
+Phase 0, Phase 1, and Phase 2 are done. Mimicry can now produce a read-only `.mimicry` snapshot package containing environment, Homebrew, and App Store sections.
 
 Current scaffold includes:
 
 - Swift package with `MimicryCore`, `MimicryCLISupport`, and `mimicry` CLI targets.
 - XcodeGen configuration in `project.yml`.
 - SwiftUI app shell.
-- CLI command shells, with `mimicry doctor` now reporting read-only local diagnostics.
+- CLI command shells, with `mimicry doctor` reporting read-only local diagnostics and `mimicry snapshot` writing the first real package sections.
 - Core snapshot, provider, log, command-runner, and `.mimicry` package models.
-- Capability and provider-registry scaffolding for Phase 2 providers.
-- Unit tests for snapshot JSON, package checksums, fake command execution, provider registry, capabilities, and CLI smoke behavior.
+- Capability detection and Phase 2 providers for environment, Homebrew, and App Store inventory.
+- Unit tests for snapshot JSON, package checksums, fake command execution, provider registry, capabilities, providers, snapshot building, and CLI smoke behavior.
 - GitHub Actions workflow for macOS validation.
 - SonarCloud configuration, coverage conversion, and README quality badges.
 
@@ -65,6 +65,8 @@ Codex has been used to:
 - start Phase 2A with read-only capability detection and structured `mimicry doctor` output
 - align local coverage reporting with SonarCloud's source boundary before commits
 - add a reusable Codex quality-gate skill so commits preserve or improve the SonarCloud baseline
+- raise the reusable Codex quality-gate skill to a zero-open-issue SonarCloud bar after the first cleanup pass
+- complete Phase 2 with real read-only snapshot generation for environment, Homebrew, and App Store sections
 
 Future implementation work should continue to make Codex-generated changes easy to review: small commits, explicit phase boundaries, tests with each meaningful behavior change, quality and coverage gates before commits, and documentation updates whenever the architecture or supported behavior changes.
 
@@ -97,6 +99,8 @@ The completion log should stay concise. Detailed technical documentation lives i
 | 2026-08-12 | Coverage denominator alignment: XcodeGen scheme now measures `MimicryCore` and `MimicryCLISupport`, runs CLI support tests, and excludes the thin CLI entry point from Sonar coverage | Done | `e2ac196` | `xcodegen generate`, `xcodebuild ... test`, Sonar XML coverage 92.15% (657/713) |
 | 2026-08-12 | Commit quality gate skill: reusable Codex guard created to prevent SonarCloud issue, debt, duplication, bug, or vulnerability regressions before commits | Done | `18a4332` | Skill validation passed; SonarCloud baseline captured as quality gate OK, 18 open issues, 0 bugs, 0 vulnerabilities, 315 minutes debt, 0.0% duplication |
 | 2026-08-12 | SonarCloud issue cleanup: refactored capability paths, capability grouping, and placeholder stubs to address the 18 live code-smell findings | Done | `18a4332` | `swift package clean`, `swift test`, `swift run mimicry doctor`, `xcodegen generate`, `xcodebuild ... test`, Sonar XML coverage 91.29% (744/815); local scans show no source absolute-path literals or empty blocks |
+| 2026-08-12 | Commit quality gate baseline raised to zero open SonarCloud issues | Done | pending commit | Live SonarCloud check: quality gate OK, 0 open issues, 0 bugs, 0 vulnerabilities, 0 code smells, 0 minutes debt, 0.0% duplication, 91.3% coverage |
+| 2026-08-12 | Phase 2 completion: environment, Homebrew, and App Store snapshot providers plus `mimicry snapshot` package writing | Done | pending commit | `swift test`, `xcodegen generate`, `xcodebuild ... test`, `swift run mimicry snapshot --output /tmp/mimicry-phase2b-smoke.mimicry`, `swift run mimicry inspect /tmp/mimicry-phase2b-smoke.mimicry`, `swift run mimicry validate /tmp/mimicry-phase2b-smoke.mimicry`, coverage gate 85.37% (1004/1176), quality gate OK with 0 open issues |
 
 ## Product Goal
 
@@ -135,6 +139,12 @@ Run the current non-mutating doctor diagnostics:
 
 ```bash
 swift run mimicry doctor
+```
+
+Create a read-only snapshot package:
+
+```bash
+swift run mimicry snapshot --output ~/Desktop/primary-mac.mimicry
 ```
 
 Generate the Xcode project:

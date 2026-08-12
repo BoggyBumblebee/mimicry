@@ -53,7 +53,7 @@ Exit criteria:
 
 ## Phase 2: Capability Detection, Homebrew, App Store, Doctor
 
-Status: In progress. Phase 2A doctor diagnostics are implemented; Homebrew/App Store snapshot providers are next.
+Status: Done.
 
 Goal: produce useful local diagnostics and first real snapshot sections.
 

@@ -37,7 +37,9 @@ Core responsibilities:
 - Command execution abstraction.
 - File backup and rollback support.
 
-`MacCapabilitiesDetector` is the Phase 2A read-only diagnostics entry point. It uses `ProcessCommandRunner` in production and `FakeCommandRunner` in tests so command-probe behavior remains covered without running real system commands in unit tests.
+`MacCapabilitiesDetector` is the read-only diagnostics entry point. It uses `ProcessCommandRunner` in production and `FakeCommandRunner` in tests so command-probe behavior remains covered without running real system commands in unit tests.
+
+`MimicrySnapshotBuilder` combines detected capabilities with the first read-only providers: environment, Homebrew, and App Store. It writes the resulting snapshot through `MimicryPackageStore` so CLI-created packages use the same package format as tests and future app workflows.
 
 App responsibilities:
 
@@ -74,6 +76,16 @@ The first implementation slice is intentionally non-mutating:
 8. Add macOS CI for SwiftPM and Xcode project validation.
 
 That slice proves the architecture without touching real system settings.
+
+## Phase 2 Snapshot Slice
+
+The Phase 2 snapshot slice keeps the same non-mutating boundary while producing useful inventory:
+
+- environment metadata from detected capabilities
+- Homebrew taps, formulae, casks, prefix, version, and architecture
+- App Store applications through `mas list` when `mas` is available
+
+Missing Homebrew or `mas` produces warnings in the snapshot section instead of crashing the command.
 
 ## Existing Project Context
 

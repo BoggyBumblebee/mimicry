@@ -11,6 +11,9 @@ xcodebuild -project Mimicry.xcodeproj -scheme Mimicry -destination platform=macO
 xcodebuild -project Mimicry.xcodeproj -scheme Mimicry -destination platform=macOS -derivedDataPath .build/XcodeDerivedData test CODE_SIGNING_ALLOWED=NO
 swift run mimicry --help
 swift run mimicry doctor
+swift run mimicry snapshot --output /tmp/mimicry-phase2b-smoke.mimicry
+swift run mimicry inspect /tmp/mimicry-phase2b-smoke.mimicry
+swift run mimicry validate /tmp/mimicry-phase2b-smoke.mimicry
 git diff --check
 ```
 
@@ -44,6 +47,7 @@ The total must stay above 80%, preferably with meaningful headroom.
 - sensitive-data filtering
 - package checksums
 - package corruption detection
+- snapshot builder writes environment, Homebrew, and App Store sections
 
 ## Provider Tests
 
@@ -60,8 +64,9 @@ The total must stay above 80%, preferably with meaningful headroom.
 
 - root command exposes expected subcommands
 - doctor output renders capability findings without mutating system state
+- snapshot output summarizes the created `.mimicry` package
 - inspect and validate can read a fixture `.mimicry` package
-- placeholder commands echo requested snapshot paths without mutating system state
+- remaining placeholder commands echo requested snapshot paths without mutating system state
 
 ## Compatibility Tests
 

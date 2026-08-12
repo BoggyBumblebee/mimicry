@@ -32,13 +32,19 @@ public enum MimicryCLIResponses {
         ]).joined(separator: "\n")
     }
 
-    public static func snapshot(output: String?) -> String {
-        var lines: [String] = []
-        if let output {
-            lines.append("Snapshot output requested: \(output)")
+    public static func snapshot(package: MimicryPackage) -> String {
+        let warningCount = package.snapshot.sections.reduce(0) { count, section in
+            count + section.warnings.count
         }
-        lines.append("Snapshot generation is not implemented in Phase 1.")
-        return lines.joined(separator: "\n")
+
+        return """
+        Mimicry Snapshot Created
+        ========================
+        Package: \(package.url.path)
+        Sections: \(package.snapshot.sections.count)
+        Warnings: \(warningCount)
+        No system settings were changed.
+        """
     }
 
     public static func inspect(packagePath: String) throws -> String {
@@ -60,14 +66,14 @@ public enum MimicryCLIResponses {
 
     public static func diff(packagePath: String) -> String {
         """
-        Diff is not implemented in Phase 1.
+        Diff is not implemented yet.
         Snapshot: \(packagePath)
         """
     }
 
     public static func apply(packagePath: String, dryRun: Bool) -> String {
         """
-        Apply is not implemented in Phase 1.
+        Apply is not implemented yet.
         Snapshot: \(packagePath)
         Dry run: \(dryRun)
         """
