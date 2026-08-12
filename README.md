@@ -1,5 +1,9 @@
 # Mimicry
 
+[![CI](https://github.com/BoggyBumblebee/mimicry/actions/workflows/ci.yml/badge.svg)](https://github.com/BoggyBumblebee/mimicry/actions/workflows/ci.yml)
+[![SonarCloud Quality Gate](https://sonarcloud.io/api/project_badges/measure?project=BoggyBumblebee_mimicry&metric=alert_status)](https://sonarcloud.io/summary/new_code?id=BoggyBumblebee_mimicry)
+[![SonarCloud Coverage](https://sonarcloud.io/api/project_badges/measure?project=BoggyBumblebee_mimicry&metric=coverage)](https://sonarcloud.io/summary/new_code?id=BoggyBumblebee_mimicry)
+
 Mimicry is a native macOS configuration declaration and reconciliation tool.
 
 The core workflow is:
@@ -28,6 +32,7 @@ Current scaffold includes:
 - Capability and provider-registry scaffolding for Phase 2 providers.
 - Unit tests for snapshot JSON, package checksums, fake command execution, provider registry, capabilities, and CLI smoke behavior.
 - GitHub Actions workflow for macOS validation.
+- SonarCloud configuration, coverage conversion, and README quality badges.
 
 No current code mutates system settings.
 
@@ -56,6 +61,7 @@ Codex has been used to:
 - capture architecture, tooling, safety, and delivery decisions before coding began
 - scaffold the first non-mutating Phase 1 implementation slice
 - complete Phase 1 with capabilities scaffolding, provider registry, CLI smoke tests, and CI
+- configure SonarCloud analysis and README status badges following the Hodgepodge project pattern
 
 Future implementation work should continue to make Codex-generated changes easy to review: small commits, explicit phase boundaries, tests with each meaningful behavior change, and documentation updates whenever the architecture or supported behavior changes.
 
@@ -82,6 +88,7 @@ The completion log should stay concise. Detailed technical documentation lives i
 | 2026-08-12 | Phase 1 scaffold slice: Swift package, XcodeGen config, SwiftUI shell, CLI shell, core models, `.mimicry` package store, fake command runner, and tests | Done | `a5289a3` | `swift test`, `xcodegen generate`, `xcodebuild ... build`, `xcodebuild ... test`, `swift run mimicry --help`, `swift run mimicry doctor` |
 | 2026-08-12 | Documentation split: README map plus focused docs under `Docs/` | Done | `35976a9` | README and docs reorganized; links and status checked |
 | 2026-08-12 | Phase 1 completion: capabilities shell, provider registry, testable CLI support target, CLI smoke tests, and macOS CI workflow | Done | `3ee1fa3` | `swift build`, `swift test`, `xcodegen generate`, `xcodebuild ... build`, `xcodebuild ... test`, app launch check, `swift run mimicry --help`, `swift run mimicry doctor`, `git diff --check` |
+| 2026-08-12 | SonarCloud setup: project properties, analysis workflow, coverage/test report converters, artifact ignore rule, and README badges | Done | pending commit | `bash -n`, `python3 -m py_compile`, `xcodegen generate`, `xcodebuild ... test`, report conversion scripts, `git diff --check` |
 
 ## Product Goal
 

@@ -18,6 +18,7 @@ logs/
 
 # Dependencies and build output
 .build/
+__pycache__/
 node_modules/
 dist/
 build/
@@ -27,5 +28,6 @@ target/
 Mimicry.xcodeproj/
 
 # Test and coverage output
+BuildArtifacts/
 coverage/
 .coverage

@@ -14,6 +14,17 @@ swift run mimicry doctor
 git diff --check
 ```
 
+## SonarCloud Reports
+
+The SonarCloud workflow generates an `.xcresult` bundle, converts line coverage to Sonar's generic coverage XML, and converts Xcode test results to Sonar's generic test-execution XML.
+
+```bash
+mkdir -p BuildArtifacts
+xcodebuild -project Mimicry.xcodeproj -scheme Mimicry -destination platform=macOS -derivedDataPath .build/DerivedData -resultBundlePath BuildArtifacts/Mimicry.xcresult test CODE_SIGNING_ALLOWED=NO
+Scripts/xccov-to-sonar-generic.sh BuildArtifacts/Mimicry.xcresult BuildArtifacts/sonar-generic-coverage.xml
+python3 Scripts/xcresult-to-sonar-test-execution.py BuildArtifacts/Mimicry.xcresult BuildArtifacts/sonar-test-execution.xml
+```
+
 ## Snapshot Tests
 
 - snapshot schema

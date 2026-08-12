@@ -10,7 +10,7 @@ Primary tools:
 - App identity: `Mimicry`, bundle identifier `com.boggybumblebee.mimicry`, CLI executable `mimicry`.
 - Xcode as the main IDE, debugger, Instruments entry point, and UI test runner.
 - XcodeGen with `project.yml` so the Xcode project is reproducible and avoids noisy `.xcodeproj` churn.
-- GitHub Actions on macOS runners for build, unit test, and CLI validation.
+- GitHub Actions on macOS runners for build, unit test, CLI validation, and SonarCloud analysis.
 - Codex for implementation passes, code review passes, documentation updates, and phase-by-phase issue breakdown.
 
 Recommended Swift packages and frameworks:
@@ -43,12 +43,15 @@ Do not treat generated `.xcodeproj` churn as the source of truth.
 
 ## CI
 
-GitHub Actions runs on `macos-latest` and validates:
+GitHub Actions runs on macOS runners and validates:
 
 - Swift toolchain availability.
 - SwiftPM tests.
 - XcodeGen project generation.
 - Xcode test scheme with repo-local DerivedData.
+- SonarCloud analysis using `sonar-project.properties`, Xcode coverage, and generic test-execution reports.
+
+SonarCloud requires a repository secret named `SONAR_TOKEN`. The SonarCloud project key is `BoggyBumblebee_mimicry`.
 
 ## Xcode Signing and Distribution Setup
 

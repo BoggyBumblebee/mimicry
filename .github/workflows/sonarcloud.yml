@@ -1,0 +1,44 @@
+name: SonarCloud
+
+on:
+  push:
+    branches:
+      - main
+  pull_request:
+
+jobs:
+  sonarcloud:
+    runs-on: macos-15
+
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Install XcodeGen
+        run: brew list xcodegen >/dev/null 2>&1 || brew install xcodegen
+
+      - name: Generate Xcode project
+        run: xcodegen generate
+
+      - name: Run tests with coverage
+        run: |
+          mkdir -p BuildArtifacts
+          xcodebuild \
+            -project Mimicry.xcodeproj \
+            -scheme Mimicry \
+            -destination 'platform=macOS' \
+            -derivedDataPath .build/DerivedData \
+            -resultBundlePath BuildArtifacts/Mimicry.xcresult \
+            test CODE_SIGNING_ALLOWED=NO
+
+      - name: Convert coverage for SonarCloud
+        run: |
+          Scripts/xccov-to-sonar-generic.sh BuildArtifacts/Mimicry.xcresult BuildArtifacts/sonar-generic-coverage.xml
+          python3 Scripts/xcresult-to-sonar-test-execution.py BuildArtifacts/Mimicry.xcresult BuildArtifacts/sonar-test-execution.xml
+
+      - name: SonarCloud scan
+        uses: SonarSource/sonarqube-scan-action@v6
+        env:
+          SONAR_TOKEN: ${{ secrets.SONAR_TOKEN }}
