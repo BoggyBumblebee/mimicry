@@ -41,8 +41,8 @@ Each provider must classify data as:
 - iCloud state detection: implemented for read-only status metadata and required-user-action reporting without authentication capture.
 - Safari bookmarks: implemented for read-only bookmark/folder metadata from `Bookmarks.plist`, with query strings and fragments removed from bookmark URLs.
 - Chrome bookmarks: implemented for read-only multi-profile bookmark/folder metadata from profile `Bookmarks` JSON files, with query strings and fragments removed from bookmark URLs.
+- Firefox bookmarks: implemented for read-only multi-profile bookmark/folder metadata from profile `places.sqlite` files, with query strings and fragments removed from bookmark URLs.
 - Safari configuration
-- Firefox bookmarks
 
 ## Future Providers
 
@@ -68,7 +68,7 @@ Terminal providers must refuse or redact likely secrets by default.
 
 ## Current Snapshot Behavior
 
-`mimicry snapshot` currently writes eight sections:
+`mimicry snapshot` currently writes nine sections:
 
 - `environment`
 - `homebrew`
@@ -78,8 +78,9 @@ Terminal providers must refuse or redact likely secrets by default.
 - `icloud`
 - `safari`
 - `chrome`
+- `firefox`
 
-Homebrew absence, `mas` absence, unreadable Finder preferences, unreadable Terminal files, Terminal files containing secret-like values, iCloud states requiring user action, and missing or unreadable Safari or Chrome bookmarks are represented as warnings or absent/redacted/reviewable values inside the relevant section. Snapshot, inspect, validate, diff, and dry-run apply do not install, remove, upgrade, sign in, write preferences, edit shell files, read synced document contents, import bookmarks, or change system settings.
+Homebrew absence, `mas` absence, unreadable Finder preferences, unreadable Terminal files, Terminal files containing secret-like values, iCloud states requiring user action, and missing or unreadable Safari, Chrome, or Firefox bookmarks are represented as warnings or absent/redacted/reviewable values inside the relevant section. Snapshot, inspect, validate, diff, and dry-run apply do not install, remove, upgrade, sign in, write preferences, edit shell files, read synced document contents, import bookmarks, or change system settings.
 
 ## Finder Preferences
 
@@ -116,3 +117,11 @@ The Chrome provider captures read-only bookmark and folder metadata from direct 
 Chrome bookmark data is marked `userMustReview` and `userSpecific`. Bookmark URL query strings and fragments are removed before capture because they can contain search terms, tracking data, tokens, or other private state. Missing profiles, unreadable bookmark JSON, and URL redaction counts are surfaced as warnings or source metadata.
 
 The provider does not read Chrome cookies, history, passwords, sessions, autofill data, profile encryption keys, extensions, website storage, account state, Sync state, Local State, Preferences, or browser databases. Chrome bookmark import/apply is not implemented yet.
+
+## Firefox Bookmarks
+
+The Firefox provider captures read-only bookmark and folder metadata from Firefox profiles under `~/Library/Application Support/Firefox` when a profile contains a `places.sqlite` database. Profile discovery uses `profiles.ini` with a fallback scan of the `Profiles` directory. Captured items include profile paths, `places.sqlite` relative paths, folder titles, folder paths, bookmark titles, bookmark folder paths, sanitized bookmark URLs, and counts for profiles, folders, bookmarks, unreadable profiles, and redacted URLs.
+
+Firefox bookmark data is marked `userMustReview` and `userSpecific`. Bookmark URL query strings and fragments are removed before capture because they can contain search terms, tracking data, tokens, or other private state. Missing profiles, unreadable SQLite bookmark data, and URL redaction counts are surfaced as warnings or source metadata.
+
+The provider does not read Firefox cookies, history pages beyond bookmark URL rows, passwords, sessions, autofill data, profile encryption keys, extensions, website storage, account state, Sync state, preferences, form history, downloads, or login databases. Firefox bookmark import/apply is not implemented yet.

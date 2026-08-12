@@ -39,7 +39,7 @@ Core responsibilities:
 
 `MacCapabilitiesDetector` is the read-only diagnostics entry point. It uses `ProcessCommandRunner` in production and `FakeCommandRunner` in tests so command-probe behavior remains covered without running real system commands in unit tests.
 
-`MimicrySnapshotBuilder` combines detected capabilities with the first read-only providers: environment, Homebrew, App Store, Finder, Terminal, iCloud, Safari, and Chrome. It writes the resulting snapshot through `MimicryPackageStore` so CLI-created packages use the same package format as tests and future app workflows.
+`MimicrySnapshotBuilder` combines detected capabilities with the first read-only providers: environment, Homebrew, App Store, Finder, Terminal, iCloud, Safari, Chrome, and Firefox. It writes the resulting snapshot through `MimicryPackageStore` so CLI-created packages use the same package format as tests and future app workflows.
 
 App responsibilities:
 
@@ -114,6 +114,8 @@ Slice D adds the first narrow mutation path behind `apply --confirm`. It compare
 Phase 4A adds the first browser provider as read-only Safari bookmark inventory. `SafariBookmarksProvider` reads `~/Library/Safari/Bookmarks.plist`, walks Safari bookmark folders and leaves, records folder/bookmark metadata as review-required user-specific snapshot items, and removes query strings and fragments from bookmark URLs before capture. The provider does not inspect Safari profiles, cookies, history, sessions, website storage, passwords, autofill, extensions, account state, or profile encryption keys.
 
 Phase 4B adds read-only Chrome bookmark inventory. `ChromeBookmarksProvider` scans direct Chrome profile folders under `~/Library/Application Support/Google/Chrome`, reads each profile `Bookmarks` JSON file, records profile/folder/bookmark metadata as review-required user-specific snapshot items, and uses the shared browser bookmark URL sanitizer. The provider does not inspect Chrome cookies, history, sessions, website storage, passwords, autofill, extensions, account state, Sync state, Local State, Preferences, browser databases, or profile encryption keys. Import/apply behavior remains deferred until browser snapshot inspection and diff behavior are trusted.
+
+Phase 4C adds read-only Firefox bookmark inventory. `FirefoxBookmarksProvider` discovers profiles from `~/Library/Application Support/Firefox/profiles.ini` with a fallback scan of the `Profiles` directory, queries bookmark rows from each profile `places.sqlite` database through the shared command-runner abstraction, records profile/folder/bookmark metadata as review-required user-specific snapshot items, and uses the shared browser bookmark URL sanitizer. The provider does not inspect Firefox cookies, non-bookmark browsing history, sessions, website storage, passwords, autofill, extensions, account state, Sync state, preferences, form history, downloads, login databases, or profile encryption keys. Import/apply behavior remains deferred until browser snapshot inspection and diff behavior are trusted.
 
 ## Existing Project Context
 
