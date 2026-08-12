@@ -17,10 +17,14 @@
 logs/
 
 # Dependencies and build output
+.build/
 node_modules/
 dist/
 build/
 target/
+
+# Generated Xcode project
+Mimicry.xcodeproj/
 
 # Test and coverage output
 coverage/

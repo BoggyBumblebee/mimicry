@@ -1,0 +1,73 @@
+name: Mimicry
+options:
+  createIntermediateGroups: true
+  minimumXcodeGenVersion: 2.46.0
+settings:
+  base:
+    SWIFT_VERSION: 6.0
+    MACOSX_DEPLOYMENT_TARGET: 15.0
+    DEVELOPMENT_TEAM: ""
+targets:
+  MimicryCore:
+    type: framework
+    platform: macOS
+    deploymentTarget: "15.0"
+    sources:
+      - path: Sources/MimicryCore
+    settings:
+      base:
+        PRODUCT_BUNDLE_IDENTIFIER: com.boggybumblebee.mimicry.core
+        GENERATE_INFOPLIST_FILE: YES
+        ENABLE_APP_SANDBOX: NO
+  Mimicry:
+    type: application
+    platform: macOS
+    deploymentTarget: "15.0"
+    sources:
+      - path: Sources/MimicryApp
+      - path: Resources
+        optional: true
+        buildPhase: resources
+    dependencies:
+      - target: MimicryCore
+    settings:
+      base:
+        PRODUCT_BUNDLE_IDENTIFIER: com.boggybumblebee.mimicry
+        PRODUCT_NAME: Mimicry
+        GENERATE_INFOPLIST_FILE: YES
+        INFOPLIST_KEY_CFBundleDisplayName: Mimicry
+        INFOPLIST_KEY_NSHumanReadableCopyright: Copyright (c) 2026 BoggyBumblebee
+        INFOPLIST_KEY_LSMinimumSystemVersion: "15.0"
+        CURRENT_PROJECT_VERSION: 1
+        MARKETING_VERSION: 0.1.0
+        ENABLE_APP_SANDBOX: NO
+        CODE_SIGN_STYLE: Automatic
+        SWIFT_EMIT_LOC_STRINGS: YES
+      configs:
+        Release:
+          ENABLE_HARDENED_RUNTIME: YES
+  MimicryTests:
+    type: bundle.unit-test
+    platform: macOS
+    deploymentTarget: "15.0"
+    sources:
+      - path: Tests/MimicryCoreTests
+    dependencies:
+      - target: MimicryCore
+    settings:
+      base:
+        PRODUCT_BUNDLE_IDENTIFIER: com.boggybumblebee.mimicry.tests
+        GENERATE_INFOPLIST_FILE: YES
+schemes:
+  Mimicry:
+    build:
+      targets:
+        Mimicry: all
+        MimicryCore: all
+        MimicryTests: [test]
+    test:
+      gatherCoverageData: true
+      coverageTargets:
+        - MimicryCore
+      targets:
+        - MimicryTests
