@@ -58,4 +58,45 @@ final class AppStoreSnapshotProviderTests: XCTestCase {
         ])
         XCTAssertEqual(section.warnings.map(\.code), ["app-store.mas-unavailable"])
     }
+
+    func testDetectReportsMASAvailability() async throws {
+        let available = try await AppStoreSnapshotProvider().detect(
+            context: DetectionContext(commandRunner: FakeCommandRunner(results: [
+                CommandResult(executable: "", arguments: [], exitCode: 0, standardOutput: "2.0.0\n")
+            ]))
+        )
+        let unavailable = try await AppStoreSnapshotProvider().detect(
+            context: DetectionContext(commandRunner: FakeCommandRunner(results: [
+                CommandResult(executable: "", arguments: [], exitCode: 127, standardError: "mas not found")
+            ]))
+        )
+
+        XCTAssertEqual(available.status, .success)
+        XCTAssertEqual(unavailable.status, .warning)
+    }
+
+    func testProviderLifecycleMethodsDeferApplyToLaterPhase() async throws {
+        let provider = AppStoreSnapshotProvider()
+        let valid = try await provider.validate(
+            section: SnapshotSection(identifier: "app-store", displayName: "App Store"),
+            context: ValidationContext()
+        )
+        let invalid = try await provider.validate(
+            section: SnapshotSection(identifier: "other", displayName: "Other"),
+            context: ValidationContext()
+        )
+        let actions = try await provider.planApply(
+            section: SnapshotSection(identifier: "app-store", displayName: "App Store"),
+            context: ApplyContext(commandRunner: FakeCommandRunner())
+        )
+        let result = try await provider.apply(
+            action: actions[0],
+            context: ApplyContext(commandRunner: FakeCommandRunner())
+        )
+
+        XCTAssertEqual(valid.status, .success)
+        XCTAssertEqual(invalid.status, .warning)
+        XCTAssertEqual(actions.map(\.kind), [.requiresUserAction])
+        XCTAssertEqual(result.status, .skipped)
+    }
 }

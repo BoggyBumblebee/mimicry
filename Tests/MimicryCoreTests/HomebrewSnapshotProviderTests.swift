@@ -69,4 +69,45 @@ final class HomebrewSnapshotProviderTests: XCTestCase {
         XCTAssertTrue(section.items.contains(SnapshotItem(key: "homebrew.formula.git", value: .object(["name": "git", "version": "2.50.0"]))))
         XCTAssertEqual(section.warnings.map(\.code), ["homebrew.taps-unavailable"])
     }
+
+    func testDetectReportsAvailability() async throws {
+        let available = try await HomebrewSnapshotProvider().detect(
+            context: DetectionContext(commandRunner: FakeCommandRunner(results: [
+                CommandResult(executable: "", arguments: [], exitCode: 0, standardOutput: "/opt/homebrew\n")
+            ]))
+        )
+        let unavailable = try await HomebrewSnapshotProvider().detect(
+            context: DetectionContext(commandRunner: FakeCommandRunner(results: [
+                CommandResult(executable: "", arguments: [], exitCode: 1, standardError: "brew not found")
+            ]))
+        )
+
+        XCTAssertEqual(available.status, .success)
+        XCTAssertEqual(unavailable.status, .warning)
+    }
+
+    func testProviderLifecycleMethodsDeferApplyToLaterPhase() async throws {
+        let provider = HomebrewSnapshotProvider()
+        let valid = try await provider.validate(
+            section: SnapshotSection(identifier: "homebrew", displayName: "Homebrew"),
+            context: ValidationContext()
+        )
+        let invalid = try await provider.validate(
+            section: SnapshotSection(identifier: "other", displayName: "Other"),
+            context: ValidationContext()
+        )
+        let actions = try await provider.planApply(
+            section: SnapshotSection(identifier: "homebrew", displayName: "Homebrew"),
+            context: ApplyContext(commandRunner: FakeCommandRunner())
+        )
+        let result = try await provider.apply(
+            action: actions[0],
+            context: ApplyContext(commandRunner: FakeCommandRunner())
+        )
+
+        XCTAssertEqual(valid.status, .success)
+        XCTAssertEqual(invalid.status, .warning)
+        XCTAssertEqual(actions.map(\.kind), [.requiresUserAction])
+        XCTAssertEqual(result.status, .skipped)
+    }
 }

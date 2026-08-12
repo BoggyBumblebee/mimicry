@@ -66,13 +66,13 @@ public struct AppStoreSnapshotProvider: ConfigurationProvider {
         return SnapshotSection(identifier: identifier, displayName: displayName, items: items)
     }
 
-    public func validate(section: SnapshotSection, context: ValidationContext) async throws -> ValidationResult {
+    public func validate(section: SnapshotSection, context _: ValidationContext) async throws -> ValidationResult {
         section.identifier == identifier
             ? ValidationResult(status: .success)
             : ValidationResult(status: .warning, messages: ["Expected App Store section."])
     }
 
-    public func planApply(section: SnapshotSection, context: ApplyContext) async throws -> [PlannedAction] {
+    public func planApply(section _: SnapshotSection, context _: ApplyContext) async throws -> [PlannedAction] {
         [
             PlannedAction(
                 providerIdentifier: identifier,
@@ -82,7 +82,7 @@ public struct AppStoreSnapshotProvider: ConfigurationProvider {
         ]
     }
 
-    public func apply(action: PlannedAction, context: ApplyContext) async throws -> ApplyResult {
+    public func apply(action: PlannedAction, context _: ApplyContext) async throws -> ApplyResult {
         ApplyResult(actionID: action.id, status: .skipped, message: "App Store apply is not implemented yet.")
     }
 }

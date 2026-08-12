@@ -9,7 +9,7 @@ public struct EnvironmentSnapshotProvider: ConfigurationProvider {
         // Stateless provider; public initializer exposes it outside MimicryCore.
     }
 
-    public func detect(context: DetectionContext) async throws -> DetectionResult {
+    public func detect(context _: DetectionContext) async throws -> DetectionResult {
         DetectionResult(
             providerIdentifier: identifier,
             status: .success,
@@ -53,13 +53,13 @@ public struct EnvironmentSnapshotProvider: ConfigurationProvider {
         )
     }
 
-    public func validate(section: SnapshotSection, context: ValidationContext) async throws -> ValidationResult {
+    public func validate(section: SnapshotSection, context _: ValidationContext) async throws -> ValidationResult {
         section.identifier == identifier
             ? ValidationResult(status: .success)
             : ValidationResult(status: .warning, messages: ["Expected environment section."])
     }
 
-    public func planApply(section: SnapshotSection, context: ApplyContext) async throws -> [PlannedAction] {
+    public func planApply(section _: SnapshotSection, context _: ApplyContext) async throws -> [PlannedAction] {
         [
             PlannedAction(
                 providerIdentifier: identifier,
@@ -69,7 +69,7 @@ public struct EnvironmentSnapshotProvider: ConfigurationProvider {
         ]
     }
 
-    public func apply(action: PlannedAction, context: ApplyContext) async throws -> ApplyResult {
+    public func apply(action: PlannedAction, context _: ApplyContext) async throws -> ApplyResult {
         ApplyResult(actionID: action.id, status: .skipped, message: "Environment metadata is informational.")
     }
 
