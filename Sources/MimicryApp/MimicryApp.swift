@@ -264,7 +264,9 @@ private struct ApplyView: View {
                                 await model.confirmedApplyForCurrentPackage()
                             }
                         }
-                        Button("Cancel", role: .cancel) {}
+                        Button("Cancel", role: .cancel) {
+                            isConfirmingApply = false
+                        }
                     } message: {
                         Text("Only explicitly safe Finder boolean and string preferences are considered. A backup is written before any change.")
                     }
@@ -418,6 +420,23 @@ private struct HistoryView: View {
 
             ContentPanel(title: "Current Package", systemImage: "doc.text.magnifyingglass") {
                 PackageInspectView(state: model.packageState)
+            }
+
+            ContentPanel(title: "Audit Log", systemImage: "list.bullet.rectangle") {
+                VStack(alignment: .leading, spacing: 14) {
+                    Button {
+                        guard let outputURL = AuditLogSavePanel.outputURL() else {
+                            return
+                        }
+                        model.exportAuditLog(to: outputURL)
+                    } label: {
+                        Label("Export JSON...", systemImage: "square.and.arrow.up")
+                    }
+                    .buttonStyle(.bordered)
+                    .disabled(model.auditLog.isEmpty || model.auditExportState.isRunning)
+
+                    AuditLogExportResultView(state: model.auditExportState, entries: model.auditLog)
+                }
             }
 
             ContentPanel(title: "Recent Milestones", systemImage: "clock.arrow.circlepath") {
@@ -1029,6 +1048,122 @@ private struct ConfirmedApplyResultView: View {
     }
 }
 
+private struct AuditLogExportResultView: View {
+    var state: AppCommandState<AppAuditExportSummary>
+    var entries: [AppAuditLogEntry]
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: 14) {
+            switch state {
+            case .idle:
+                if entries.isEmpty {
+                    EmptyStateRow(
+                        title: "No audit entries yet",
+                        detail: "Snapshot, dry-run, confirmed apply, and browser handoff activity will appear here.",
+                        systemImage: "list.bullet.rectangle"
+                    )
+                } else {
+                    KeyValueList(rows: [
+                        KeyValueRow(label: "Entries", value: "\(entries.count)"),
+                        KeyValueRow(label: "Latest", value: entries.first?.operation.displayName ?? "None")
+                    ])
+                }
+            case .running:
+                ProgressRow(title: "Exporting audit log", detail: "Writing structured JSON for review.")
+            case let .succeeded(summary):
+                VStack(alignment: .leading, spacing: 14) {
+                    KeyValueList(rows: [
+                        KeyValueRow(label: "Output", value: summary.outputURL.lastPathComponent),
+                        KeyValueRow(label: "Entries", value: "\(summary.entryCount)")
+                    ])
+
+                    Button {
+                        NSWorkspace.shared.activateFileViewerSelecting([summary.outputURL])
+                    } label: {
+                        Label("Reveal", systemImage: "folder")
+                    }
+                }
+            case let .failed(message):
+                FailureRow(title: "Audit export failed", detail: message)
+            }
+
+            if !entries.isEmpty {
+                Divider()
+                VStack(alignment: .leading, spacing: 8) {
+                    ForEach(entries.prefix(4)) { entry in
+                        AuditLogRow(entry: entry)
+                    }
+
+                    if entries.count > 4 {
+                        Text("\(entries.count - 4) more")
+                            .font(.caption)
+                            .foregroundStyle(.secondary)
+                    }
+                }
+            }
+        }
+    }
+}
+
+private struct AuditLogRow: View {
+    var entry: AppAuditLogEntry
+
+    var body: some View {
+        HStack(alignment: .top, spacing: 10) {
+            Image(systemName: iconName)
+                .frame(width: 22)
+                .foregroundStyle(iconColor)
+            VStack(alignment: .leading, spacing: 2) {
+                HStack(spacing: 8) {
+                    Text(entry.operation.displayName)
+                        .font(.subheadline.weight(.semibold))
+                    Text(entry.status.capitalized)
+                        .font(.caption.weight(.semibold))
+                        .foregroundStyle(iconColor)
+                }
+                Text(entry.message)
+                    .font(.caption)
+                    .foregroundStyle(.secondary)
+                    .fixedSize(horizontal: false, vertical: true)
+                if let packageURL = entry.packageURL {
+                    Text(packageURL.lastPathComponent)
+                        .font(.caption)
+                        .foregroundStyle(.tertiary)
+                        .lineLimit(1)
+                        .truncationMode(.middle)
+                }
+            }
+            Spacer()
+        }
+    }
+
+    private var iconName: String {
+        switch entry.status {
+        case "success":
+            "checkmark.circle"
+        case "blocked", "warning":
+            "exclamationmark.triangle"
+        case "failed":
+            "xmark.octagon"
+        default:
+            "info.circle"
+        }
+    }
+
+    private var iconColor: Color {
+        switch entry.status {
+        case "success":
+            .green
+        case "blocked", "warning":
+            .orange
+        case "failed":
+            .red
+        default:
+            .secondary
+        }
+    }
+}
+
 private struct ApplyResultRow: View {
     var result: AppApplyResultSummary
 
@@ -1286,6 +1421,28 @@ private enum BrowserBookmarkSavePanel {
         }
 
         return url.deletingPathExtension().appendingPathExtension("html")
+    }
+}
+
+private enum AuditLogSavePanel {
+    @MainActor
+    static func outputURL() -> URL? {
+        let panel = NSSavePanel()
+        panel.nameFieldStringValue = "mimicry-audit-log.json"
+        panel.canCreateDirectories = true
+        panel.isExtensionHidden = false
+        panel.title = "Export Mimicry Audit Log"
+        panel.prompt = "Export"
+
+        guard panel.runModal() == .OK, let url = panel.url else {
+            return nil
+        }
+
+        if url.pathExtension == "json" {
+            return url
+        }
+
+        return url.deletingPathExtension().appendingPathExtension("json")
     }
 }
 

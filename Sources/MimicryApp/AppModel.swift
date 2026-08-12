@@ -10,7 +10,9 @@ final class AppModel: ObservableObject {
     @Published private(set) var applyPlanState: AppCommandState<AppApplyPlanSummary> = .idle
     @Published private(set) var confirmedApplyState: AppCommandState<AppConfirmedApplySummary> = .idle
     @Published private(set) var browserBookmarkExportState: AppCommandState<AppBrowserBookmarkExportSummary> = .idle
+    @Published private(set) var auditExportState: AppCommandState<AppAuditExportSummary> = .idle
     @Published private(set) var diagnosticsState: AppCommandState<AppDiagnosticsSummary> = .idle
+    @Published private(set) var auditLog: [AppAuditLogEntry] = []
     @Published private(set) var recentPackages: [RecentPackage]
 
     private let runtime: AppRuntime
@@ -42,8 +44,25 @@ final class AppModel: ObservableObject {
                 packageState = .failed(error.readableMessage)
             }
             recentPackages = historyStore.record(summary.url)
+            recordAudit(
+                operation: .snapshot,
+                status: "success",
+                packageURL: summary.url,
+                message: "Created snapshot package.",
+                metrics: [
+                    "sections": summary.sectionCount,
+                    "items": summary.itemCount,
+                    "warnings": summary.warningCount
+                ]
+            )
         } catch {
             snapshotState = .failed(error.readableMessage)
+            recordAudit(
+                operation: .snapshot,
+                status: "failed",
+                packageURL: outputURL.standardizedFileURL,
+                message: error.readableMessage
+            )
         }
     }
 
@@ -58,26 +77,72 @@ final class AppModel: ObservableObject {
             let summary = try await runtime.openPackage(packageURL.standardizedFileURL)
             packageState = .succeeded(summary)
             recentPackages = historyStore.record(summary.url)
+            recordAudit(
+                operation: .openPackage,
+                status: "success",
+                packageURL: summary.url,
+                message: "Opened and validated package.",
+                metrics: [
+                    "sections": summary.sectionCount,
+                    "items": summary.itemCount,
+                    "warnings": summary.warningCount
+                ]
+            )
         } catch {
             packageState = .failed(error.readableMessage)
+            recordAudit(
+                operation: .openPackage,
+                status: "failed",
+                packageURL: packageURL.standardizedFileURL,
+                message: error.readableMessage
+            )
         }
     }
 
     func exportBrowserBookmarksForCurrentPackage(to outputURL: URL) async {
         guard case let .succeeded(package) = packageState else {
             browserBookmarkExportState = .failed("Open a package before exporting browser bookmarks.")
+            recordAudit(
+                operation: .browserBookmarkExport,
+                status: "blocked",
+                packageURL: nil,
+                outputURL: outputURL.standardizedFileURL,
+                message: "Open a package before exporting browser bookmarks."
+            )
             return
         }
 
         browserBookmarkExportState = .running
 
         do {
-            browserBookmarkExportState = .succeeded(try await runtime.exportBrowserBookmarks(
+            let summary = try await runtime.exportBrowserBookmarks(
                 package.url,
                 outputURL.standardizedFileURL
-            ))
+            )
+            browserBookmarkExportState = .succeeded(summary)
+            recordAudit(
+                operation: .browserBookmarkExport,
+                status: "success",
+                packageURL: summary.packageURL,
+                outputURL: summary.outputURL,
+                message: "Exported reviewable browser bookmark HTML handoff.",
+                metrics: [
+                    "browserSections": summary.browserSectionCount,
+                    "bookmarksExported": summary.exportedBookmarkCount,
+                    "duplicatesSkipped": summary.skippedDuplicateCount,
+                    "invalidURLsSkipped": summary.skippedInvalidCount,
+                    "unavailableSourcesSkipped": summary.skippedUnavailableSourceCount
+                ]
+            )
         } catch {
             browserBookmarkExportState = .failed(error.readableMessage)
+            recordAudit(
+                operation: .browserBookmarkExport,
+                status: "failed",
+                packageURL: package.url,
+                outputURL: outputURL.standardizedFileURL,
+                message: error.readableMessage
+            )
         }
     }
 
@@ -91,28 +156,82 @@ final class AppModel: ObservableObject {
         confirmedApplyState = .idle
 
         do {
-            applyPlanState = .succeeded(try await runtime.planApplyPackage(package.url))
+            let summary = try await runtime.planApplyPackage(package.url)
+            applyPlanState = .succeeded(summary)
+            recordAudit(
+                operation: .dryRunApply,
+                status: "success",
+                packageURL: summary.packageURL,
+                message: "Previewed non-mutating apply plan.",
+                metrics: [
+                    "actions": summary.actionCount,
+                    "install": summary.installCount,
+                    "configure": summary.configureCount,
+                    "skip": summary.skipCount,
+                    "blocked": summary.blockedCount,
+                    "requiresUserAction": summary.userActionCount
+                ]
+            )
         } catch {
             applyPlanState = .failed(error.readableMessage)
+            recordAudit(
+                operation: .dryRunApply,
+                status: "failed",
+                packageURL: package.url,
+                message: error.readableMessage
+            )
         }
     }
 
     func confirmedApplyForCurrentPackage() async {
         guard case let .succeeded(package) = packageState else {
             confirmedApplyState = .failed("Open a package before confirmed apply.")
+            recordAudit(
+                operation: .confirmedApply,
+                status: "blocked",
+                packageURL: nil,
+                message: "Open a package before confirmed apply."
+            )
             return
         }
         guard case let .succeeded(plan) = applyPlanState, plan.packageURL == package.url else {
             confirmedApplyState = .failed("Run a dry run before confirmed apply.")
+            recordAudit(
+                operation: .confirmedApply,
+                status: "blocked",
+                packageURL: package.url,
+                message: "Run a dry run before confirmed apply."
+            )
             return
         }
 
         confirmedApplyState = .running
 
         do {
-            confirmedApplyState = .succeeded(try await runtime.confirmedApplyPackage(package.url))
+            let summary = try await runtime.confirmedApplyPackage(package.url)
+            confirmedApplyState = .succeeded(summary)
+            recordAudit(
+                operation: .confirmedApply,
+                status: summary.failedCount > 0 ? "warning" : "success",
+                packageURL: summary.packageURL,
+                backupURL: summary.backupURL,
+                message: "Ran backed-up Finder-safe confirmed apply.",
+                metrics: [
+                    "results": summary.resultCount,
+                    "applied": summary.appliedCount,
+                    "warnings": summary.warningCount,
+                    "skipped": summary.skippedCount,
+                    "failed": summary.failedCount
+                ]
+            )
         } catch {
             confirmedApplyState = .failed(error.readableMessage)
+            recordAudit(
+                operation: .confirmedApply,
+                status: "failed",
+                packageURL: package.url,
+                message: error.readableMessage
+            )
         }
     }
 
@@ -140,6 +259,45 @@ final class AppModel: ObservableObject {
         } catch {
             diagnosticsState = .failed(error.readableMessage)
         }
+    }
+
+    func exportAuditLog(to outputURL: URL) {
+        guard !auditLog.isEmpty else {
+            auditExportState = .failed("No audit entries to export.")
+            return
+        }
+
+        auditExportState = .running
+
+        do {
+            auditExportState = .succeeded(try AppAuditLogExporter().export(
+                entries: auditLog,
+                to: outputURL.standardizedFileURL
+            ))
+        } catch {
+            auditExportState = .failed(error.readableMessage)
+        }
+    }
+
+    private func recordAudit(
+        operation: AppAuditOperation,
+        status: String,
+        packageURL: URL?,
+        outputURL: URL? = nil,
+        backupURL: URL? = nil,
+        message: String,
+        metrics: [String: Int] = [:]
+    ) {
+        auditLog.insert(AppAuditLogEntry(
+            operation: operation,
+            status: status,
+            packageURL: packageURL,
+            outputURL: outputURL,
+            backupURL: backupURL,
+            message: message,
+            metrics: metrics
+        ), at: 0)
+        auditLog = Array(auditLog.prefix(50))
     }
 }
 
@@ -494,6 +652,90 @@ struct AppApplyResultSummary: Equatable, Sendable, Identifiable {
         status = result.status.rawValue
         message = result.message
     }
+}
+
+enum AppAuditOperation: String, Codable, Equatable, Sendable {
+    case snapshot
+    case openPackage
+    case dryRunApply
+    case confirmedApply
+    case browserBookmarkExport
+
+    var displayName: String {
+        switch self {
+        case .snapshot:
+            "Snapshot"
+        case .openPackage:
+            "Open Package"
+        case .dryRunApply:
+            "Dry Run"
+        case .confirmedApply:
+            "Confirmed Apply"
+        case .browserBookmarkExport:
+            "Browser Handoff"
+        }
+    }
+}
+
+struct AppAuditLogEntry: Codable, Equatable, Sendable, Identifiable {
+    var id: UUID
+    var timestamp: Date
+    var operation: AppAuditOperation
+    var status: String
+    var packageURL: URL?
+    var outputURL: URL?
+    var backupURL: URL?
+    var message: String
+    var metrics: [String: Int]
+
+    init(
+        id: UUID = UUID(),
+        timestamp: Date = Date(),
+        operation: AppAuditOperation,
+        status: String,
+        packageURL: URL?,
+        outputURL: URL? = nil,
+        backupURL: URL? = nil,
+        message: String,
+        metrics: [String: Int] = [:]
+    ) {
+        self.id = id
+        self.timestamp = timestamp
+        self.operation = operation
+        self.status = status
+        self.packageURL = packageURL
+        self.outputURL = outputURL
+        self.backupURL = backupURL
+        self.message = message
+        self.metrics = metrics
+    }
+}
+
+struct AppAuditExportSummary: Equatable, Sendable {
+    var outputURL: URL
+    var entryCount: Int
+}
+
+struct AppAuditLogExporter {
+    func export(entries: [AppAuditLogEntry], to outputURL: URL) throws -> AppAuditExportSummary {
+        let document = AppAuditLogDocument(exportedAt: Date(), entries: entries)
+        let encoder = JSONEncoder()
+        encoder.dateEncodingStrategy = .iso8601
+        encoder.outputFormatting = [.prettyPrinted, .sortedKeys]
+        let data = try encoder.encode(document)
+        try FileManager.default.createDirectory(
+            at: outputURL.deletingLastPathComponent(),
+            withIntermediateDirectories: true
+        )
+        try data.write(to: outputURL, options: .atomic)
+        return AppAuditExportSummary(outputURL: outputURL, entryCount: entries.count)
+    }
+}
+
+private struct AppAuditLogDocument: Codable {
+    var schemaVersion = 1
+    var exportedAt: Date
+    var entries: [AppAuditLogEntry]
 }
 
 struct AppDiagnosticsSummary: Equatable, Sendable {

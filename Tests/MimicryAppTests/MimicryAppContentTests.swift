@@ -583,6 +583,82 @@ final class MimicryAppContentTests: XCTestCase {
         XCTAssertEqual(model.browserBookmarkExportState, .failed("Browser export test failure"))
     }
 
+    func testAuditLogRecordsApplyAndBrowserHandoffActivity() async {
+        let model = Self.makeModel(
+            runtime: AppRuntime(
+                createSnapshot: { url in
+                    AppSnapshotSummary(
+                        url: url,
+                        sectionCount: 0,
+                        itemCount: 0,
+                        warningCount: 0,
+                        createdAt: Date(timeIntervalSince1970: 0),
+                        source: "unused"
+                    )
+                },
+                openPackage: { url in AppPackageSummary(package: Self.samplePackage(url: url)) },
+                comparePackage: { url in Self.sampleCompareSummary(url: url) },
+                planApplyPackage: { url in Self.sampleApplyPlanSummary(url: url) },
+                confirmedApplyPackage: { url in Self.sampleConfirmedApplySummary(packageURL: url) },
+                exportBrowserBookmarks: { packageURL, outputURL in
+                    Self.sampleBrowserBookmarkExportSummary(packageURL: packageURL, outputURL: outputURL)
+                },
+                detectCapabilities: { Self.sampleCapabilities }
+            ),
+            historyStore: PackageHistoryStore(
+                load: { [] },
+                record: { [RecentPackage(url: $0)] }
+            )
+        )
+
+        await model.openPackage(at: URL(fileURLWithPath: "/tmp/opened.mimicry"))
+        await model.planApplyForCurrentPackage()
+        await model.confirmedApplyForCurrentPackage()
+        await model.exportBrowserBookmarksForCurrentPackage(to: URL(fileURLWithPath: "/tmp/bookmarks.html"))
+
+        XCTAssertEqual(model.auditLog.map(\.operation), [
+            .browserBookmarkExport,
+            .confirmedApply,
+            .dryRunApply,
+            .openPackage
+        ])
+        XCTAssertEqual(model.auditLog.map(\.status), ["success", "success", "success", "success"])
+        XCTAssertEqual(model.auditLog[0].metrics["bookmarksExported"], 7)
+        XCTAssertEqual(model.auditLog[1].backupURL, URL(fileURLWithPath: "/tmp/finder-backup.json"))
+        XCTAssertEqual(model.auditLog[1].metrics["applied"], 1)
+        XCTAssertEqual(model.auditLog[2].metrics["actions"], 4)
+    }
+
+    func testAuditLogExportWritesStructuredJSON() async throws {
+        let model = Self.makeModel()
+        let outputURL = FileManager.default.temporaryDirectory
+            .appendingPathComponent(UUID().uuidString)
+            .appendingPathComponent("mimicry-audit-log.json")
+
+        await model.openPackage(at: URL(fileURLWithPath: "/tmp/opened.mimicry"))
+        await model.planApplyForCurrentPackage()
+        model.exportAuditLog(to: outputURL)
+
+        XCTAssertEqual(model.auditExportState, .succeeded(AppAuditExportSummary(outputURL: outputURL, entryCount: 2)))
+
+        let decoder = JSONDecoder()
+        decoder.dateDecodingStrategy = .iso8601
+        let document = try decoder.decode(DecodedAuditDocument.self, from: Data(contentsOf: outputURL))
+
+        XCTAssertEqual(document.schemaVersion, 1)
+        XCTAssertEqual(document.entries.map(\.operation), [.dryRunApply, .openPackage])
+        XCTAssertEqual(document.entries.first?.packageURL, URL(fileURLWithPath: "/tmp/opened.mimicry"))
+        XCTAssertEqual(document.entries.first?.metrics["actions"], 4)
+    }
+
+    func testAuditLogExportRequiresEntries() {
+        let model = Self.makeModel()
+
+        model.exportAuditLog(to: URL(fileURLWithPath: "/tmp/mimicry-audit-log.json"))
+
+        XCTAssertEqual(model.auditExportState, .failed("No audit entries to export."))
+    }
+
     func testDiagnosticsRefreshSummarizesCapabilities() async {
         let model = Self.makeModel(runtime: AppRuntime(
             createSnapshot: { url in
@@ -818,6 +894,11 @@ final class MimicryAppContentTests: XCTestCase {
             ]
         )
     }
+}
+
+private struct DecodedAuditDocument: Decodable {
+    var schemaVersion: Int
+    var entries: [AppAuditLogEntry]
 }
 
 private enum AppTestError: LocalizedError {
