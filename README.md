@@ -20,21 +20,21 @@ The full build prompt is tracked in [PROMPT.md](PROMPT.md).
 
 ## Current Status
 
-Phase 0, Phase 1, and Phase 2 are done. Phase 3 is now being delivered as end-to-end vertical slices so each step can be tested manually. Slices A, B, and C are implemented: Mimicry can create, validate, richly inspect, diff, and dry-run apply a read-only `.mimicry` snapshot package containing environment, Homebrew, App Store, Finder, Terminal, and iCloud sections.
+Phase 0, Phase 1, Phase 2, and Phase 3 are done. Phase 3 was delivered as end-to-end vertical slices: Mimicry can create, validate, richly inspect, diff, dry-run apply, and perform the first narrow confirmed apply from a `.mimicry` snapshot package containing environment, Homebrew, App Store, Finder, Terminal, and iCloud sections.
 
 Current scaffold includes:
 
 - Swift package with `MimicryCore`, `MimicryCLISupport`, and `mimicry` CLI targets.
 - XcodeGen configuration in `project.yml`.
 - SwiftUI app shell.
-- CLI command shells, with `mimicry doctor` reporting read-only local diagnostics, `mimicry snapshot` writing the first real package sections, `mimicry inspect` rendering a human-readable audit of captured, review-required, excluded, unsupported, and warning items, `mimicry diff` comparing a snapshot to the current Mac, and `mimicry apply --dry-run` rendering the first action plan.
+- CLI command shells, with `mimicry doctor` reporting read-only local diagnostics, `mimicry snapshot` writing the first real package sections, `mimicry inspect` rendering a human-readable audit of captured, review-required, excluded, unsupported, and warning items, `mimicry diff` comparing a snapshot to the current Mac, `mimicry apply --dry-run` rendering the first action plan, and `mimicry apply --confirm` applying only explicitly safe Finder boolean/string preferences with a backup.
 - Core snapshot, provider, log, command-runner, and `.mimicry` package models.
 - Capability detection, Phase 2 providers for environment, Homebrew, and App Store inventory, and Phase 3 providers for Finder, Terminal, and iCloud inventory.
-- Unit tests for snapshot JSON, package checksums, fake command execution, provider registry, capabilities, providers, snapshot building, and CLI smoke behavior.
+- Unit tests for snapshot JSON, package checksums, fake command execution, provider registry, capabilities, providers, snapshot building, dry-run planning, confirmed Finder apply behavior, and CLI smoke behavior.
 - GitHub Actions workflow for macOS validation.
 - SonarCloud configuration, coverage conversion, and README quality badges.
 
-No current code mutates system settings.
+Most commands remain non-mutating. The only current mutation path is `mimicry apply --confirm`, which is intentionally limited to safe Finder preferences, writes a backup first when changes are required, and does not delete preferences or copy user-specific values.
 
 ## Documentation
 
@@ -74,6 +74,7 @@ Codex has been used to:
 - recut Phase 3 into end-to-end manual-test slices and complete Slice A with rich snapshot inspection
 - complete Slice B with a read-only snapshot diff report
 - complete Slice C with a non-mutating dry-run apply plan
+- complete Slice D with the first explicitly confirmed, backed-up Finder-safe apply path
 
 Future implementation work should continue to make Codex-generated changes easy to review: small commits, explicit phase boundaries, tests with each meaningful behavior change, quality and coverage gates before commits, and documentation updates whenever the architecture or supported behavior changes.
 
@@ -101,7 +102,7 @@ The target outcome is:
 mimicry snapshot --output ~/Desktop/primary-mac.mimicry
 mimicry doctor
 mimicry apply ~/Desktop/primary-mac.mimicry --dry-run
-mimicry apply ~/Desktop/primary-mac.mimicry
+mimicry apply ~/Desktop/primary-mac.mimicry --confirm
 ```
 
 After apply, the destination Mac should be configured as closely as practical to the reference Mac while clearly reporting anything skipped, unsupported, incompatible, managed, excluded, or requiring user action.
@@ -159,3 +160,11 @@ swift run mimicry inspect ~/Desktop/manual-test.mimicry
 swift run mimicry diff ~/Desktop/manual-test.mimicry
 swift run mimicry apply ~/Desktop/manual-test.mimicry --dry-run
 ```
+
+The current real apply path is deliberately narrow and should be run only after reviewing the dry-run output:
+
+```bash
+swift run mimicry apply ~/Desktop/manual-test.mimicry --confirm
+```
+
+`--confirm` only considers safe Finder boolean/string preferences, writes a backup of the current Finder section before changing anything, skips user-specific values such as paths, and never deletes preferences.

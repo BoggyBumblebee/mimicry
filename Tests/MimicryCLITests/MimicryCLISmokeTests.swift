@@ -177,6 +177,30 @@ final class MimicryCLISmokeTests: XCTestCase {
         XCTAssertTrue(output.contains("No system settings were changed."))
     }
 
+    func testConfirmedApplyRendersFinderApplySummary() {
+        let output = MimicryCLIResponses.confirmedApply(
+            packagePath: "target.mimicry",
+            summary: FinderPreferenceApplySummary(
+                backupURL: URL(fileURLWithPath: "finder-backup.json"),
+                results: [
+                    ApplyResult(
+                        actionID: UUID(uuidString: "00000000-0000-0000-0000-000000000001")!,
+                        status: .success,
+                        message: "Applied Finder preference ShowPathbar."
+                    )
+                ]
+            )
+        )
+
+        XCTAssertTrue(output.contains("Mimicry Apply"))
+        XCTAssertTrue(output.contains("Mode: confirmed Finder-safe apply"))
+        XCTAssertTrue(output.contains("Backup:"))
+        XCTAssertTrue(output.contains("Applied: 1"))
+        XCTAssertTrue(output.contains("Warnings: 0"))
+        XCTAssertTrue(output.contains("- success: Applied Finder preference ShowPathbar."))
+        XCTAssertTrue(output.contains("Only explicitly classified safe Finder preferences were considered."))
+    }
+
     private func makeTemporaryDirectory() throws -> URL {
         let url = FileManager.default.temporaryDirectory
             .appendingPathComponent(UUID().uuidString, isDirectory: true)

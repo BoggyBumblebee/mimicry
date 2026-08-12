@@ -36,7 +36,7 @@ Each provider must classify data as:
 - Environment and capabilities: implemented for read-only snapshot metadata.
 - Homebrew: implemented for read-only taps, formulae, casks, prefix, version, and architecture.
 - Mac App Store through `mas`: implemented for read-only App Store application inventory when `mas` is available.
-- Finder basics: implemented for read-only stable preference inventory through `defaults read`.
+- Finder basics: implemented for stable preference inventory through `defaults read`, with the first confirmed safe apply path for boolean/string preferences through `defaults write`.
 - Terminal basics: implemented for read-only shell metadata and shell config-file metadata with secret-like values redacted.
 - iCloud state detection: implemented for read-only status metadata and required-user-action reporting without authentication capture.
 - Safari bookmarks/configuration
@@ -76,13 +76,15 @@ Terminal providers must refuse or redact likely secrets by default.
 - `terminal`
 - `icloud`
 
-Homebrew absence, `mas` absence, unreadable Finder preferences, unreadable Terminal files, Terminal files containing secret-like values, and iCloud states requiring user action are represented as warnings or absent/redacted/reviewable values inside the relevant section. No current provider installs, removes, upgrades, signs in, writes preferences, edits shell files, reads synced document contents, or changes system settings during snapshot.
+Homebrew absence, `mas` absence, unreadable Finder preferences, unreadable Terminal files, Terminal files containing secret-like values, and iCloud states requiring user action are represented as warnings or absent/redacted/reviewable values inside the relevant section. Snapshot, inspect, validate, diff, and dry-run apply do not install, remove, upgrade, sign in, write preferences, edit shell files, read synced document contents, or change system settings.
 
 ## Finder Preferences
 
 The Finder provider captures a conservative read-only inventory of stable `com.apple.finder` preferences through `defaults read`, including visibility controls, view style, search scope, new-window target metadata, trash warning behavior, and desktop device visibility toggles.
 
 Missing individual defaults are represented as absent values rather than failures. User-specific paths such as `NewWindowTargetPath` are marked for review.
+
+`mimicry apply --confirm` can write only changed or missing Finder preferences that are classified as safe configuration and whose snapshot values are booleans or strings. It skips absent values, user-specific paths, sensitive values, managed values, and unsupported values, writes a backup before changing anything, and does not restart Finder.
 
 ## Terminal Metadata
 

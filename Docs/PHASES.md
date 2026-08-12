@@ -71,9 +71,9 @@ Exit criteria:
 - Homebrew and App Store providers have unit tests with mocked commands.
 - Missing Homebrew or `mas` is reported as a warning, not a crash.
 
-## Phase 3: End-To-End Read-Only Trust Loop
+## Phase 3: End-To-End Trust Loop
 
-Status: In progress. Read-only Finder inventory, Terminal metadata inventory, shell secret scanning, iCloud status metadata, rich snapshot inspection, snapshot diff, and dry-run apply planning are implemented. The first safe apply slice is next.
+Status: Done.
 
 Goal: make the existing providers manually testable as a real workflow before adding more provider breadth.
 
@@ -86,21 +86,21 @@ Deliverables:
 - Snapshot inspection for captured, excluded, unsupported, and user-action-required items.
 - Snapshot diff for the current Mac.
 - Dry-run apply planning for existing providers.
-- First narrow safe apply path with backups and explicit non-mutating tests.
+- First narrow safe apply path with backups, explicit confirmation, and fake-runner mutation tests.
 
 Vertical slices:
 
 - Slice A, Trust The Snapshot: `snapshot`, `validate`, and rich `inspect` make captured, excluded, redacted, unsupported, and review-required items visible.
 - Slice B, Explain The Difference: `diff` compares an existing snapshot with the current Mac and reports matching, changed, missing, current-only, skipped, and unsupported items.
 - Slice C, Dry-Run Apply: `apply --dry-run` produces a real action plan without mutating this Mac.
-- Slice D, First Safe Apply: enable the smallest explicitly classified mutation path, with backup and clear limitations.
+- Slice D, First Safe Apply: enables a confirmed Finder-only mutation path for safe boolean/string preferences, with a pre-write backup and clear limitations.
 
 Exit criteria:
 
 - Terminal provider refuses or redacts likely secrets by default.
 - Finder provider documents every `defaults` or public mechanism it uses.
 - iCloud provider never stores credentials or auth state.
-- A user can run `doctor`, `snapshot`, `inspect`, `diff`, and `apply --dry-run` and understand the result without opening JSON.
+- A user can run `doctor`, `snapshot`, `inspect`, `diff`, `apply --dry-run`, and the narrow `apply --confirm` path and understand the result without opening JSON.
 - The first real apply behavior is narrow, backed up where practical, and covered by tests.
 
 ## Phase 4: Browser Providers

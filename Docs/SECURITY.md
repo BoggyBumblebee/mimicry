@@ -80,6 +80,12 @@ Terminal shell configuration is treated as potentially sensitive by default. Mim
 
 iCloud is treated as user-action-only for authentication and sync state. Mimicry records local status metadata and whether the expected iCloud Drive container is present, but it does not read iCloud account databases, sync databases, document contents, Keychain items, tokens, sessions, cookies, or credentials.
 
+## Confirmed Apply Boundary
+
+The first real apply path is deliberately narrow. `mimicry apply --confirm` only writes explicitly safe Finder boolean/string preferences from the `com.apple.finder` domain after comparing the snapshot to the current Mac. It skips user-specific paths, unsupported values, absent values, excluded values, managed values, hardware-specific values, sensitive values, and anything outside Finder.
+
+Before any confirmed Finder write, Mimicry writes a JSON backup of the current Finder snapshot section under the user's Application Support directory. The first implementation does not delete preferences, restart Finder, edit Terminal files, install packages, sign into services, or copy credentials.
+
 When a privileged helper becomes necessary, it should use the modern Service Management model with helper resources inside the app bundle, registered through `SMAppService`, and controlled through System Settings approval. The helper must expose a narrow XPC API, never accept raw shell strings, log every privileged action, and be optional unless the selected provider requires it.
 
 Candidate post-MVP helper use cases:

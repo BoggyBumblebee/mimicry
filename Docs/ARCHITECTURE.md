@@ -107,6 +107,8 @@ Slice B adds a core snapshot diff engine and CLI report. The engine compares a s
 
 Slice C adds a core dry-run apply planner. It consumes the diff report and maps non-matching items into install, configure, skip, blocked, and requires-user-action actions. The CLI renders those groups for `apply --dry-run`; non-dry-run apply remains blocked until the first narrow mutation slice is implemented.
 
+Slice D adds the first narrow mutation path behind `apply --confirm`. It compares the snapshot's Finder section with the current Mac, selects only safe `com.apple.finder` boolean/string preferences, skips absent values and user-specific paths, writes a JSON backup of the current Finder section before any command runs, and executes `defaults write` through the shared command-runner abstraction. Plain `apply` continues to refuse, and `apply --dry-run` remains the review-first workflow.
+
 ## Existing Project Context
 
 The implementation should learn from nearby BoggyBumblebee projects:

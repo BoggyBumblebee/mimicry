@@ -16,6 +16,7 @@ swift run mimicry inspect /tmp/mimicry-phase2b-smoke.mimicry
 swift run mimicry validate /tmp/mimicry-phase2b-smoke.mimicry
 swift run mimicry diff /tmp/mimicry-phase2b-smoke.mimicry
 swift run mimicry apply /tmp/mimicry-phase2b-smoke.mimicry --dry-run
+swift run mimicry apply /tmp/mimicry-phase2b-smoke.mimicry --confirm
 git diff --check
 ```
 
@@ -53,7 +54,7 @@ The total must stay above 80%, preferably with meaningful headroom.
 
 ## Manual Trust Loop
 
-The current end-to-end manual path is intentionally read-only:
+The current end-to-end manual path begins read-only:
 
 ```bash
 swift run mimicry doctor
@@ -68,7 +69,15 @@ swift run mimicry apply ~/Desktop/manual-test.mimicry --dry-run
 
 `diff` should compare the snapshot to the current Mac and show matching, changed, missing, current-only, skipped, unsupported, snapshot-warning, and current-warning groups without mutating system settings.
 
-`apply --dry-run` should render install, configure, skip, blocked, and requires-user-action groups without mutating system settings. Non-dry-run apply remains blocked until the first safe apply slice lands.
+`apply --dry-run` should render install, configure, skip, blocked, and requires-user-action groups without mutating system settings.
+
+After reviewing the dry-run, the first real apply slice can be tested manually:
+
+```bash
+swift run mimicry apply ~/Desktop/manual-test.mimicry --confirm
+```
+
+`apply --confirm` only considers explicitly safe Finder boolean/string preferences, writes a backup of the current Finder section before changing anything, skips user-specific values such as Finder paths, never deletes preferences, and reports either applied results or that no safe Finder preference changes were required.
 
 ## Provider Tests
 
@@ -93,7 +102,8 @@ swift run mimicry apply ~/Desktop/manual-test.mimicry --dry-run
 - inspect renders a human-readable audit of captured, review-required, excluded, unsupported, and warning items
 - diff renders a human-readable comparison against the current snapshot
 - apply dry-run renders a human-readable action plan
-- non-dry-run apply refuses to mutate system state
+- non-dry-run apply without confirmation refuses to mutate system state
+- confirmed apply renders the Finder-safe apply summary
 - validate can read a fixture `.mimicry` package
 
 ## Compatibility Tests
@@ -104,9 +114,11 @@ swift run mimicry apply ~/Desktop/manual-test.mimicry --dry-run
 
 ## Apply Tests
 
-- idempotency
-- dry run
-- failure handling
+- dry-run planning
+- confirmed safe Finder preference writes through fake command runners
+- backup creation before confirmed Finder preference writes
+- warning reporting for failed safe Finder preference writes
+- idempotent no-op behavior when safe Finder preferences already match
 - partial failure
 - rollback behavior
 
@@ -122,4 +134,4 @@ Verify that snapshots cannot accidentally contain:
 
 ## Test Boundary
 
-Early Phase 1 tests must not mutate system settings. Provider apply tests should use fakes, fixtures, and temporary directories until real provider behavior has explicit user approval and safety checks.
+Provider apply tests should use fakes, fixtures, and temporary directories. Manual real apply behavior must require explicit user confirmation and should begin with the narrow Finder-safe path.

@@ -90,6 +90,33 @@ public enum MimicryCLIResponses {
         )
         return SnapshotApplyPlanRenderer(packagePath: packagePath, plan: plan).render()
     }
+
+    public static func confirmedApply(packagePath: String, summary: FinderPreferenceApplySummary) -> String {
+        var lines = [
+            "Mimicry Apply",
+            "=============",
+            "Snapshot: \(packagePath)",
+            "Mode: confirmed Finder-safe apply",
+            "Backup: \(summary.backupURL?.path ?? "not needed")",
+            "Applied: \(summary.results.filter { $0.status == .success }.count)",
+            "Warnings: \(summary.results.filter { $0.status == .warning }.count)",
+            "",
+            "Results",
+            "-------"
+        ]
+
+        if summary.results.isEmpty {
+            lines.append("No safe Finder preference changes were required.")
+        } else {
+            for result in summary.results {
+                lines.append("- \(result.status.rawValue): \(result.message)")
+            }
+        }
+
+        lines.append("")
+        lines.append("Only explicitly classified safe Finder preferences were considered.")
+        return lines.joined(separator: "\n")
+    }
 }
 
 private struct SnapshotApplyPlanRenderer {

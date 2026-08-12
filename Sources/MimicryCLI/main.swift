@@ -106,18 +106,31 @@ struct Apply: AsyncParsableCommand {
     @Flag(help: "Plan actions without changing this Mac.")
     var dryRun = false
 
+    @Flag(help: "Allow the first narrow Finder apply path to change this Mac.")
+    var confirm = false
+
     func run() async throws {
         let currentSnapshot: MimicrySnapshot?
-        if dryRun {
+        if dryRun || confirm {
             let result = try await MimicrySnapshotBuilder().buildSnapshot()
             currentSnapshot = result.snapshot
         } else {
             currentSnapshot = nil
         }
-        print(try MimicryCLIResponses.apply(
-            packagePath: packagePath,
-            dryRun: dryRun,
-            currentSnapshot: currentSnapshot
-        ))
+
+        if confirm, !dryRun, let currentSnapshot {
+            let package = try MimicryPackageStore().read(from: URL(fileURLWithPath: packagePath))
+            let summary = try await FinderPreferenceApplyExecutor().apply(
+                reference: package.snapshot,
+                current: currentSnapshot
+            )
+            print(MimicryCLIResponses.confirmedApply(packagePath: packagePath, summary: summary))
+        } else {
+            print(try MimicryCLIResponses.apply(
+                packagePath: packagePath,
+                dryRun: dryRun,
+                currentSnapshot: currentSnapshot
+            ))
+        }
     }
 }
