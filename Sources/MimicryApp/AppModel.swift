@@ -1,0 +1,237 @@
+import Combine
+import Foundation
+import MimicryCore
+
+@MainActor
+final class AppModel: ObservableObject {
+    @Published private(set) var snapshotState: AppCommandState<AppSnapshotSummary> = .idle
+    @Published private(set) var diagnosticsState: AppCommandState<AppDiagnosticsSummary> = .idle
+    @Published private(set) var recentPackages: [RecentPackage]
+
+    private let runtime: AppRuntime
+    private let historyStore: PackageHistoryStore
+
+    init(
+        runtime: AppRuntime = .live,
+        historyStore: PackageHistoryStore = .userDefaults()
+    ) {
+        self.runtime = runtime
+        self.historyStore = historyStore
+        recentPackages = historyStore.load()
+    }
+
+    func createSnapshot(to outputURL: URL) async {
+        snapshotState = .running
+
+        do {
+            let summary = try await runtime.createSnapshot(outputURL.standardizedFileURL)
+            snapshotState = .succeeded(summary)
+            recentPackages = historyStore.record(summary.url)
+        } catch {
+            snapshotState = .failed(error.readableMessage)
+        }
+    }
+
+    func refreshDiagnostics() async {
+        diagnosticsState = .running
+
+        do {
+            let capabilities = try await runtime.detectCapabilities()
+            diagnosticsState = .succeeded(AppDiagnosticsSummary(capabilities: capabilities))
+        } catch {
+            diagnosticsState = .failed(error.readableMessage)
+        }
+    }
+}
+
+enum AppCommandState<Value: Equatable>: Equatable {
+    case idle
+    case running
+    case succeeded(Value)
+    case failed(String)
+
+    var isRunning: Bool {
+        if case .running = self {
+            return true
+        }
+        return false
+    }
+}
+
+struct AppRuntime: Sendable {
+    var createSnapshot: @Sendable (URL) async throws -> AppSnapshotSummary
+    var detectCapabilities: @Sendable () async throws -> MacCapabilities
+
+    static let live = AppRuntime(
+        createSnapshot: { outputURL in
+            let result = try await MimicrySnapshotBuilder().writeSnapshot(to: outputURL)
+            return AppSnapshotSummary(package: result.package)
+        },
+        detectCapabilities: {
+            await MacCapabilitiesDetector().detect()
+        }
+    )
+}
+
+struct AppSnapshotSummary: Equatable, Sendable {
+    var url: URL
+    var sectionCount: Int
+    var itemCount: Int
+    var warningCount: Int
+    var createdAt: Date
+    var source: String
+
+    init(
+        url: URL,
+        sectionCount: Int,
+        itemCount: Int,
+        warningCount: Int,
+        createdAt: Date,
+        source: String
+    ) {
+        self.url = url
+        self.sectionCount = sectionCount
+        self.itemCount = itemCount
+        self.warningCount = warningCount
+        self.createdAt = createdAt
+        self.source = source
+    }
+
+    init(package: MimicryPackage) {
+        let snapshot = package.snapshot
+        self.init(
+            url: package.url,
+            sectionCount: snapshot.sections.count,
+            itemCount: snapshot.sections.reduce(0) { $0 + $1.items.count },
+            warningCount: snapshot.sections.reduce(0) { $0 + $1.warnings.count },
+            createdAt: package.manifest.createdAt,
+            source: "\(snapshot.source.hostname) (\(snapshot.source.username))"
+        )
+    }
+}
+
+struct AppDiagnosticsSummary: Equatable, Sendable {
+    var host: String
+    var macOSVersion: String
+    var architecture: String
+    var rows: [DiagnosticRow]
+
+    init(capabilities: MacCapabilities) {
+        host = capabilities.hostname
+        macOSVersion = capabilities.macOSVersion
+        architecture = capabilities.architecture.rawValue
+        rows = [
+            DiagnosticRow(label: "Command Line Tools", value: capabilities.hasCommandLineTools.availabilityLabel),
+            DiagnosticRow(label: "Homebrew", value: capabilities.homebrew.isInstalled.availabilityLabel),
+            DiagnosticRow(label: "mas", value: capabilities.hasMAS.availabilityLabel),
+            DiagnosticRow(label: "FileVault", value: capabilities.fileVaultState.displayLabel),
+            DiagnosticRow(label: "SIP", value: capabilities.sipState.displayLabel),
+            DiagnosticRow(label: "iCloud", value: capabilities.iCloudState.displayLabel),
+            DiagnosticRow(label: "App Store", value: capabilities.appStoreState.displayLabel),
+            DiagnosticRow(label: "Management", value: capabilities.managementState.displayLabel)
+        ]
+    }
+}
+
+struct DiagnosticRow: Equatable, Sendable, Identifiable {
+    var id: String { label }
+    var label: String
+    var value: String
+}
+
+struct RecentPackage: Equatable, Identifiable {
+    var id: String { url.path }
+    var url: URL
+    var name: String
+    var path: String
+    var lastOpenedAt: Date?
+
+    init(url: URL, lastOpenedAt: Date? = nil) {
+        self.url = url
+        name = url.lastPathComponent
+        path = url.deletingLastPathComponent().path
+        self.lastOpenedAt = lastOpenedAt
+    }
+}
+
+struct PackageHistoryStore {
+    private let loadPackages: () -> [RecentPackage]
+    private let recordPackage: (URL) -> [RecentPackage]
+
+    init(
+        load: @escaping () -> [RecentPackage],
+        record: @escaping (URL) -> [RecentPackage]
+    ) {
+        loadPackages = load
+        recordPackage = record
+    }
+
+    func load() -> [RecentPackage] {
+        loadPackages()
+    }
+
+    func record(_ url: URL) -> [RecentPackage] {
+        recordPackage(url)
+    }
+
+    static func userDefaults(_ defaults: UserDefaults = .standard) -> PackageHistoryStore {
+        let key = "recentMimicryPackagePaths"
+
+        func packages(from paths: [String]) -> [RecentPackage] {
+            paths.map { path in
+                let url = URL(fileURLWithPath: path)
+                let modificationDate = try? FileManager.default
+                    .attributesOfItem(atPath: path)[.modificationDate] as? Date
+                return RecentPackage(url: url, lastOpenedAt: modificationDate)
+            }
+        }
+
+        return PackageHistoryStore {
+            packages(from: defaults.stringArray(forKey: key) ?? [])
+        } record: { url in
+            let path = url.standardizedFileURL.path
+            var paths = defaults.stringArray(forKey: key) ?? []
+            paths.removeAll { $0 == path }
+            paths.insert(path, at: 0)
+            paths = Array(paths.prefix(8))
+            defaults.set(paths, forKey: key)
+            return packages(from: paths)
+        }
+    }
+}
+
+private extension Bool {
+    var availabilityLabel: String {
+        self ? "Available" : "Unavailable"
+    }
+}
+
+private extension CapabilityState {
+    var displayLabel: String {
+        switch self {
+        case .available:
+            "Available"
+        case .unavailable:
+            "Unavailable"
+        case .enabled:
+            "Enabled"
+        case .disabled:
+            "Disabled"
+        case .managed:
+            "Managed"
+        case .requiresUserAction:
+            "Requires user action"
+        case .unsupported:
+            "Unsupported"
+        case .unknown:
+            "Unknown"
+        }
+    }
+}
+
+private extension Error {
+    var readableMessage: String {
+        let message = localizedDescription.trimmingCharacters(in: .whitespacesAndNewlines)
+        return message.isEmpty ? String(describing: self) : message
+    }
+}

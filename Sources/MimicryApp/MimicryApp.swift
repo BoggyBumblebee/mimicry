@@ -1,3 +1,4 @@
+import AppKit
 import MimicryCore
 import SwiftUI
 
@@ -18,13 +19,18 @@ struct MimicryApp: App {
 }
 
 struct RootView: View {
+    @StateObject private var model: AppModel
     @State private var selection: AppSection? = .dashboard
+
+    init(model: AppModel = AppModel()) {
+        _model = StateObject(wrappedValue: model)
+    }
 
     var body: some View {
         NavigationSplitView {
             Sidebar(selection: $selection)
         } detail: {
-            DetailView(section: selection ?? .dashboard)
+            DetailView(section: selection ?? .dashboard, model: model)
         }
         .frame(minWidth: 980, minHeight: 660)
         .toolbar {
@@ -62,6 +68,7 @@ private struct Sidebar: View {
 
 struct DetailView: View {
     var section: AppSection
+    @ObservedObject var model: AppModel
 
     var body: some View {
         ScrollView {
@@ -70,17 +77,17 @@ struct DetailView: View {
 
                 switch section {
                 case .dashboard:
-                    DashboardView()
+                    DashboardView(model: model)
                 case .snapshot:
-                    SnapshotView()
+                    SnapshotView(model: model)
                 case .apply:
                     ApplyView()
                 case .compare:
                     CompareView()
                 case .history:
-                    HistoryView()
+                    HistoryView(model: model)
                 case .diagnostics:
-                    DiagnosticsView()
+                    DiagnosticsView(model: model)
                 }
             }
             .padding(28)
@@ -116,6 +123,7 @@ private struct SectionHeader: View {
 }
 
 private struct DashboardView: View {
+    @ObservedObject var model: AppModel
     private let summaries = CapabilitySummary.current
     private let workflow = WorkflowStep.current
 
@@ -130,6 +138,13 @@ private struct DashboardView: View {
                 ForEach(summaries) { summary in
                     MetricCard(summary: summary)
                 }
+                MetricCard(summary: CapabilitySummary(
+                    title: "Packages",
+                    status: "\(model.recentPackages.count) recent",
+                    detail: model.recentPackages.first?.name ?? "Create a snapshot to start package history.",
+                    systemImage: "archivebox",
+                    tint: .teal
+                ))
             }
 
             ContentPanel(title: "Workflow", systemImage: "point.topleft.down.curvedto.point.bottomright.up") {
@@ -148,27 +163,39 @@ private struct DashboardView: View {
 }
 
 private struct SnapshotView: View {
+    @ObservedObject var model: AppModel
+
     var body: some View {
         TwoColumnPanels {
             ContentPanel(title: "Capture", systemImage: "camera.viewfinder") {
-                ActionList(items: [
-                    ActionItem(title: "Environment", status: "Captured", systemImage: "macbook"),
-                    ActionItem(title: "Homebrew", status: "Captured", systemImage: "shippingbox"),
-                    ActionItem(title: "App Store", status: "Captured", systemImage: "bag"),
-                    ActionItem(title: "Finder", status: "Captured", systemImage: "folder"),
-                    ActionItem(title: "Terminal", status: "Reviewed", systemImage: "terminal"),
-                    ActionItem(title: "iCloud", status: "User action", systemImage: "icloud"),
-                    ActionItem(title: "Browsers", status: "Review only", systemImage: "safari")
-                ])
+                VStack(alignment: .leading, spacing: 14) {
+                    Button {
+                        guard let outputURL = SnapshotSavePanel.outputURL() else {
+                            return
+                        }
+                        Task {
+                            await model.createSnapshot(to: outputURL)
+                        }
+                    } label: {
+                        Label("Create Snapshot...", systemImage: "camera.viewfinder")
+                    }
+                    .buttonStyle(.borderedProminent)
+                    .disabled(model.snapshotState.isRunning)
+
+                    ActionList(items: [
+                        ActionItem(title: "Environment", status: "Captured", systemImage: "macbook"),
+                        ActionItem(title: "Homebrew", status: "Captured", systemImage: "shippingbox"),
+                        ActionItem(title: "App Store", status: "Captured", systemImage: "bag"),
+                        ActionItem(title: "Finder", status: "Captured", systemImage: "folder"),
+                        ActionItem(title: "Terminal", status: "Reviewed", systemImage: "terminal"),
+                        ActionItem(title: "iCloud", status: "User action", systemImage: "icloud"),
+                        ActionItem(title: "Browsers", status: "Review only", systemImage: "safari")
+                    ])
+                }
             }
 
             ContentPanel(title: "Package Review", systemImage: "doc.text.magnifyingglass") {
-                KeyValueList(rows: [
-                    KeyValueRow(label: "Format", value: ".mimicry package"),
-                    KeyValueRow(label: "Checksums", value: "Manifest backed"),
-                    KeyValueRow(label: "Secrets", value: "Redacted or excluded"),
-                    KeyValueRow(label: "Browser URLs", value: "Queries and fragments removed")
-                ])
+                SnapshotResultView(state: model.snapshotState)
             }
         }
     }
@@ -211,29 +238,55 @@ private struct CompareView: View {
 }
 
 private struct HistoryView: View {
+    @ObservedObject var model: AppModel
+
     var body: some View {
-        ContentPanel(title: "Recent Milestones", systemImage: "clock.arrow.circlepath") {
-            VStack(alignment: .leading, spacing: 12) {
-                MilestoneRow(title: "Phase 4 closeout", detail: "Browser provider phase complete", commit: "92ae7f2")
-                MilestoneRow(title: "Browser dry-run handoff", detail: "Apply preview links to export command", commit: "4f499d5")
-                MilestoneRow(title: "Browser bookmark export", detail: "Reviewable Netscape HTML artifact", commit: "974012e")
+        TwoColumnPanels {
+            ContentPanel(title: "Recent Packages", systemImage: "archivebox") {
+                if model.recentPackages.isEmpty {
+                    EmptyStateRow(
+                        title: "No packages yet",
+                        detail: "Snapshot activity will appear here.",
+                        systemImage: "tray"
+                    )
+                } else {
+                    VStack(alignment: .leading, spacing: 12) {
+                        ForEach(model.recentPackages) { package in
+                            RecentPackageRow(package: package)
+                        }
+                    }
+                }
+            }
+
+            ContentPanel(title: "Recent Milestones", systemImage: "clock.arrow.circlepath") {
+                VStack(alignment: .leading, spacing: 12) {
+                    MilestoneRow(title: "GUI polish", detail: "Dashboard shell and app tests", commit: "cf67945")
+                    MilestoneRow(title: "Phase 4 closeout", detail: "Browser provider phase complete", commit: "92ae7f2")
+                    MilestoneRow(title: "Browser dry-run handoff", detail: "Apply preview links to export command", commit: "4f499d5")
+                }
             }
         }
     }
 }
 
 private struct DiagnosticsView: View {
+    @ObservedObject var model: AppModel
+
     var body: some View {
         TwoColumnPanels {
             ContentPanel(title: "Doctor Signals", systemImage: "stethoscope") {
-                KeyValueList(rows: [
-                    KeyValueRow(label: "Command Line Tools", value: "Checked"),
-                    KeyValueRow(label: "Homebrew", value: "Checked"),
-                    KeyValueRow(label: "mas", value: "Checked"),
-                    KeyValueRow(label: "FileVault", value: "Checked"),
-                    KeyValueRow(label: "SIP", value: "Checked"),
-                    KeyValueRow(label: "MDM", value: "Reported")
-                ])
+                VStack(alignment: .leading, spacing: 14) {
+                    Button {
+                        Task {
+                            await model.refreshDiagnostics()
+                        }
+                    } label: {
+                        Label("Refresh", systemImage: "arrow.clockwise")
+                    }
+                    .disabled(model.diagnosticsState.isRunning)
+
+                    DiagnosticsResultView(state: model.diagnosticsState)
+                }
             }
 
             ContentPanel(title: "Quality", systemImage: "checkmark.seal") {
@@ -406,6 +459,134 @@ private struct KeyValueList: View {
     }
 }
 
+private struct SnapshotResultView: View {
+    var state: AppCommandState<AppSnapshotSummary>
+
+    var body: some View {
+        switch state {
+        case .idle:
+            KeyValueList(rows: [
+                KeyValueRow(label: "Format", value: ".mimicry package"),
+                KeyValueRow(label: "Checksums", value: "Manifest backed"),
+                KeyValueRow(label: "Secrets", value: "Redacted or excluded"),
+                KeyValueRow(label: "Browser URLs", value: "Queries and fragments removed")
+            ])
+        case .running:
+            ProgressRow(title: "Creating snapshot", detail: "No system settings are being changed.")
+        case let .succeeded(summary):
+            VStack(alignment: .leading, spacing: 14) {
+                KeyValueList(rows: [
+                    KeyValueRow(label: "Package", value: summary.url.lastPathComponent),
+                    KeyValueRow(label: "Sections", value: "\(summary.sectionCount)"),
+                    KeyValueRow(label: "Items", value: "\(summary.itemCount)"),
+                    KeyValueRow(label: "Warnings", value: "\(summary.warningCount)"),
+                    KeyValueRow(label: "Source", value: summary.source)
+                ])
+
+                Button {
+                    NSWorkspace.shared.activateFileViewerSelecting([summary.url])
+                } label: {
+                    Label("Reveal", systemImage: "folder")
+                }
+            }
+        case let .failed(message):
+            FailureRow(title: "Snapshot failed", detail: message)
+        }
+    }
+}
+
+private struct DiagnosticsResultView: View {
+    var state: AppCommandState<AppDiagnosticsSummary>
+
+    var body: some View {
+        switch state {
+        case .idle:
+            EmptyStateRow(title: "Not refreshed", detail: "Doctor signals will appear here.", systemImage: "stethoscope")
+        case .running:
+            ProgressRow(title: "Refreshing diagnostics", detail: "Reading local capability signals.")
+        case let .succeeded(summary):
+            VStack(alignment: .leading, spacing: 12) {
+                KeyValueList(rows: [
+                    KeyValueRow(label: "Host", value: summary.host),
+                    KeyValueRow(label: "macOS", value: summary.macOSVersion),
+                    KeyValueRow(label: "Architecture", value: summary.architecture)
+                ])
+
+                Divider()
+
+                KeyValueList(rows: summary.rows.map { row in
+                    KeyValueRow(label: row.label, value: row.value)
+                })
+            }
+        case let .failed(message):
+            FailureRow(title: "Diagnostics failed", detail: message)
+        }
+    }
+}
+
+private struct ProgressRow: View {
+    var title: String
+    var detail: String
+
+    var body: some View {
+        HStack(alignment: .top, spacing: 12) {
+            ProgressView()
+                .controlSize(.small)
+                .padding(.top, 1)
+
+            VStack(alignment: .leading, spacing: 3) {
+                Text(title)
+                    .font(.subheadline.weight(.semibold))
+                Text(detail)
+                    .font(.subheadline)
+                    .foregroundStyle(.secondary)
+            }
+        }
+    }
+}
+
+private struct FailureRow: View {
+    var title: String
+    var detail: String
+
+    var body: some View {
+        HStack(alignment: .top, spacing: 10) {
+            Image(systemName: "exclamationmark.triangle.fill")
+                .foregroundStyle(.orange)
+                .padding(.top, 1)
+            VStack(alignment: .leading, spacing: 3) {
+                Text(title)
+                    .font(.subheadline.weight(.semibold))
+                Text(detail)
+                    .font(.subheadline)
+                    .foregroundStyle(.secondary)
+                    .fixedSize(horizontal: false, vertical: true)
+            }
+        }
+    }
+}
+
+private struct EmptyStateRow: View {
+    var title: String
+    var detail: String
+    var systemImage: String
+
+    var body: some View {
+        HStack(alignment: .top, spacing: 10) {
+            Image(systemName: systemImage)
+                .foregroundStyle(.secondary)
+                .padding(.top, 1)
+            VStack(alignment: .leading, spacing: 3) {
+                Text(title)
+                    .font(.subheadline.weight(.semibold))
+                Text(detail)
+                    .font(.subheadline)
+                    .foregroundStyle(.secondary)
+            }
+        }
+    }
+}
+
 private struct CompactStatusTile: View {
     var title: String
     var value: String
@@ -424,6 +605,38 @@ private struct CompactStatusTile: View {
         .padding(12)
         .frame(maxWidth: .infinity, minHeight: 100, alignment: .topLeading)
         .background(.quinary, in: RoundedRectangle(cornerRadius: 8))
+    }
+}
+
+private struct RecentPackageRow: View {
+    var package: RecentPackage
+
+    var body: some View {
+        HStack(alignment: .top, spacing: 12) {
+            Image(systemName: "doc.badge.gearshape")
+                .foregroundStyle(Color.accentColor)
+                .padding(.top, 1)
+
+            VStack(alignment: .leading, spacing: 3) {
+                Text(package.name)
+                    .font(.subheadline.weight(.semibold))
+                Text(package.path)
+                    .font(.caption)
+                    .foregroundStyle(.secondary)
+                    .lineLimit(1)
+                    .truncationMode(.middle)
+            }
+
+            Spacer()
+
+            Button {
+                NSWorkspace.shared.activateFileViewerSelecting([package.url])
+            } label: {
+                Image(systemName: "folder")
+            }
+            .buttonStyle(.borderless)
+            .help("Reveal")
+        }
     }
 }
 
@@ -449,6 +662,27 @@ private struct MilestoneRow: View {
                 .font(.caption.monospaced())
                 .foregroundStyle(.secondary)
         }
+    }
+}
+
+private enum SnapshotSavePanel {
+    @MainActor
+    static func outputURL() -> URL? {
+        let panel = NSSavePanel()
+        panel.nameFieldStringValue = "mimicry-snapshot.mimicry"
+        panel.canCreateDirectories = true
+        panel.isExtensionHidden = false
+        panel.title = "Create Mimicry Snapshot"
+
+        guard panel.runModal() == .OK, let url = panel.url else {
+            return nil
+        }
+
+        if url.pathExtension == "mimicry" {
+            return url
+        }
+
+        return url.deletingPathExtension().appendingPathExtension("mimicry")
     }
 }
 
