@@ -4,7 +4,7 @@
 [![SonarCloud Quality Gate](https://sonarcloud.io/api/project_badges/measure?project=BoggyBumblebee_mimicry&metric=alert_status)](https://sonarcloud.io/summary/new_code?id=BoggyBumblebee_mimicry)
 [![SonarCloud Coverage](https://sonarcloud.io/api/project_badges/measure?project=BoggyBumblebee_mimicry&metric=coverage)](https://sonarcloud.io/summary/new_code?id=BoggyBumblebee_mimicry)
 
-Mimicry is a native macOS configuration declaration and reconciliation tool.
+Mimicry helps make moving between Apple macOS devices as seamless as possible, and helps keep a user's Macs consistent in the tools, configuration, and usability details that make a machine feel ready to work on.
 
 The core workflow is:
 
@@ -14,7 +14,7 @@ Inspect exactly what was captured and excluded.
 Apply that snapshot to another Mac safely, repeatably, and with clear explanations.
 ```
 
-Mimicry is not a backup tool, disk clone, or credential migration utility. It should never try to copy an entire home directory, browser profile, Keychain, or `~/Library` tree. Its job is to describe the desired configuration of a Mac and make another Mac conform to that declaration as far as safely and technically possible.
+Mimicry is not a backup tool, disk clone, or credential migration utility. It should never try to copy an entire home directory, browser profile, Keychain, or `~/Library` tree. Its job is to capture the parts of a Mac setup that can be safely understood, reviewed, and reapplied so another Mac can feel familiar without dragging private state or machine-specific baggage along with it.
 
 The full build prompt is tracked in [PROMPT.md](PROMPT.md).
 
@@ -47,34 +47,13 @@ Most commands remain non-mutating. The only current mutation path is `mimicry ap
 - [Compatibility](Docs/COMPATIBILITY.md): macOS 15 target, hardware applicability, managed Macs, and version compatibility.
 - [Phase Plan](Docs/PHASES.md): phase-by-phase delivery plan and exit criteria.
 - [Completion Log](Docs/COMPLETION-LOG.md): completed setup, implementation, documentation, quality, and validation steps.
+- [License](LICENSE.md): MIT License terms.
 
 ## Codex Collaboration
 
 This project is being planned and built with Codex as an implementation partner.
 
-Codex has been used to:
-
-- initialize the repository
-- create and push the GitHub project
-- import the original build prompt as `PROMPT.md`
-- inspect related BoggyBumblebee projects
-- turn the build prompt into an implementation roadmap
-- capture architecture, tooling, safety, and delivery decisions before coding began
-- scaffold the first non-mutating Phase 1 implementation slice
-- complete Phase 1 with capabilities scaffolding, provider registry, CLI smoke tests, and CI
-- configure SonarCloud analysis and README status badges following the Hodgepodge project pattern
-- start Phase 2A with read-only capability detection and structured `mimicry doctor` output
-- align local coverage reporting with SonarCloud's source boundary before commits
-- add a reusable Codex quality-gate skill so commits preserve or improve the SonarCloud baseline
-- raise the reusable Codex quality-gate skill to a zero-open-issue SonarCloud bar after the first cleanup pass
-- complete Phase 2 with real read-only snapshot generation for environment, Homebrew, and App Store sections
-- start Phase 3 with read-only Finder preference inventory
-- add Phase 3 Terminal metadata inventory with secret-like shell configuration redaction
-- add Phase 3 iCloud status metadata without capturing credentials or authentication state
-- recut Phase 3 into end-to-end manual-test slices and complete Slice A with rich snapshot inspection
-- complete Slice B with a read-only snapshot diff report
-- complete Slice C with a non-mutating dry-run apply plan
-- complete Slice D with the first explicitly confirmed, backed-up Finder-safe apply path
+Codex was used in the creation of this project, including planning, documentation, implementation, validation, and repository maintenance.
 
 Future implementation work should continue to make Codex-generated changes easy to review: small commits, explicit phase boundaries, tests with each meaningful behavior change, quality and coverage gates before commits, and documentation updates whenever the architecture or supported behavior changes.
 
@@ -168,3 +147,7 @@ swift run mimicry apply ~/Desktop/manual-test.mimicry --confirm
 ```
 
 `--confirm` only considers safe Finder boolean/string preferences, writes a backup of the current Finder section before changing anything, skips user-specific values such as paths, and never deletes preferences.
+
+## License
+
+Distributed under the MIT License. See [LICENSE.md](LICENSE.md) for details.
