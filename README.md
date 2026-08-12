@@ -1,0 +1,3 @@
+# Mimicry
+
+Mimicry project workspace.
