@@ -4,7 +4,7 @@ import XCTest
 final class MimicrySnapshotBuilderTests: XCTestCase {
     func testBuilderWritesEnvironmentAndProviderSectionsToPackage() async throws {
         let temporaryDirectory = try makeTemporaryDirectory()
-        let packageURL = temporaryDirectory.appendingPathComponent("phase-2b.mimicry")
+        let packageURL = temporaryDirectory.appendingPathComponent("phase-3c.mimicry")
         let runner = FakeCommandRunner(results: [
             CommandResult(executable: "", arguments: [], exitCode: 0, standardOutput: "/opt/homebrew\n"),
             CommandResult(executable: "", arguments: [], exitCode: 0, standardOutput: "Homebrew 5.0.0\n"),
@@ -15,6 +15,17 @@ final class MimicrySnapshotBuilderTests: XCTestCase {
         ])
         let builder = MimicrySnapshotBuilder(
             runner: runner,
+            providers: [
+                EnvironmentSnapshotProvider(),
+                HomebrewSnapshotProvider(),
+                AppStoreSnapshotProvider(),
+                FinderSnapshotProvider(preferences: []),
+                TerminalSnapshotProvider(
+                    homeDirectory: temporaryDirectory,
+                    environment: ["SHELL": "/bin/zsh"],
+                    configFiles: []
+                )
+            ],
             capabilitiesProvider: {
                 MacCapabilities.phaseTwoBFixture()
             }
@@ -24,7 +35,7 @@ final class MimicrySnapshotBuilderTests: XCTestCase {
         let package = try MimicryPackageStore().read(from: packageURL)
 
         XCTAssertEqual(result.package.url.path, packageURL.standardizedFileURL.path)
-        XCTAssertEqual(package.snapshot.sections.map(\.identifier), ["environment", "homebrew", "app-store", "finder"])
+        XCTAssertEqual(package.snapshot.sections.map(\.identifier), ["environment", "homebrew", "app-store", "finder", "terminal"])
         XCTAssertEqual(package.snapshot.source.hostname, "reference-mac.local")
         XCTAssertTrue(package.snapshot.sections.flatMap(\.warnings).contains(SnapshotWarning(code: "app-store.mas-unavailable", message: "`mas` was not available; App Store applications were not captured.")))
     }

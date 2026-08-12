@@ -20,7 +20,7 @@ The full build prompt is tracked in [PROMPT.md](PROMPT.md).
 
 ## Current Status
 
-Phase 0, Phase 1, and Phase 2 are done. Phase 3 has started with read-only Finder preference inventory. Mimicry can now produce a read-only `.mimicry` snapshot package containing environment, Homebrew, App Store, and Finder sections.
+Phase 0, Phase 1, and Phase 2 are done. Phase 3 now includes read-only Finder preference inventory plus Terminal shell/config metadata with secret-safe redaction. Mimicry can produce a read-only `.mimicry` snapshot package containing environment, Homebrew, App Store, Finder, and Terminal sections.
 
 Current scaffold includes:
 
@@ -29,7 +29,7 @@ Current scaffold includes:
 - SwiftUI app shell.
 - CLI command shells, with `mimicry doctor` reporting read-only local diagnostics and `mimicry snapshot` writing the first real package sections.
 - Core snapshot, provider, log, command-runner, and `.mimicry` package models.
-- Capability detection, Phase 2 providers for environment, Homebrew, and App Store inventory, and the first Phase 3 Finder provider.
+- Capability detection, Phase 2 providers for environment, Homebrew, and App Store inventory, and Phase 3 providers for Finder and Terminal inventory.
 - Unit tests for snapshot JSON, package checksums, fake command execution, provider registry, capabilities, providers, snapshot building, and CLI smoke behavior.
 - GitHub Actions workflow for macOS validation.
 - SonarCloud configuration, coverage conversion, and README quality badges.
@@ -69,6 +69,7 @@ Codex has been used to:
 - raise the reusable Codex quality-gate skill to a zero-open-issue SonarCloud bar after the first cleanup pass
 - complete Phase 2 with real read-only snapshot generation for environment, Homebrew, and App Store sections
 - start Phase 3 with read-only Finder preference inventory
+- add Phase 3 Terminal metadata inventory with secret-like shell configuration redaction
 
 Future implementation work should continue to make Codex-generated changes easy to review: small commits, explicit phase boundaries, tests with each meaningful behavior change, quality and coverage gates before commits, and documentation updates whenever the architecture or supported behavior changes.
 

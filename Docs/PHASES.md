@@ -73,7 +73,7 @@ Exit criteria:
 
 ## Phase 3: Finder, Terminal, iCloud
 
-Status: In progress. The first read-only Finder snapshot slice is implemented; Terminal, secret scanning, iCloud, and inspection detail are still pending.
+Status: In progress. Read-only Finder inventory, Terminal metadata inventory, and shell secret scanning are implemented; iCloud and inspection detail are still pending.
 
 Goal: cover the first user-visible macOS configuration areas.
 

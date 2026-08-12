@@ -72,6 +72,10 @@ Reasons to avoid a helper in the MVP:
 - It can make users nervous because it adds a root-capable background component.
 - Many MVP actions, including Homebrew, App Store detection, Finder preferences, Terminal files, bookmarks, dry-run planning, and snapshot inspection, do not need a root daemon.
 
+## Terminal Secret Handling
+
+Terminal shell configuration is treated as potentially sensitive by default. Mimicry does not store shell profile contents in normal snapshot sections. It records file metadata only and marks files as redacted when the secret scanner finds private-key markers, token/password assignments, AWS access keys, or bearer-token-like values.
+
 When a privileged helper becomes necessary, it should use the modern Service Management model with helper resources inside the app bundle, registered through `SMAppService`, and controlled through System Settings approval. The helper must expose a narrow XPC API, never accept raw shell strings, log every privileged action, and be optional unless the selected provider requires it.
 
 Candidate post-MVP helper use cases:

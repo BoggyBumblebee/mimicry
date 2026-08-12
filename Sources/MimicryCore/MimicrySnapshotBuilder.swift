@@ -26,7 +26,8 @@ public struct MimicrySnapshotBuilder {
             EnvironmentSnapshotProvider(),
             HomebrewSnapshotProvider(),
             AppStoreSnapshotProvider(),
-            FinderSnapshotProvider()
+            FinderSnapshotProvider(),
+            TerminalSnapshotProvider()
         ],
         mimicryVersion: String = "0.1.0",
         capabilitiesProvider: CapabilitiesProvider? = nil
