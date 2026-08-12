@@ -16,6 +16,7 @@ swift run mimicry inspect /tmp/mimicry-phase2b-smoke.mimicry
 swift run mimicry validate /tmp/mimicry-phase2b-smoke.mimicry
 swift run mimicry diff /tmp/mimicry-phase2b-smoke.mimicry
 swift run mimicry apply /tmp/mimicry-phase2b-smoke.mimicry --dry-run
+swift run mimicry export-browser-bookmarks /tmp/mimicry-phase2b-smoke.mimicry --output /tmp/mimicry-browser-bookmarks.html
 swift run mimicry apply /tmp/mimicry-phase2b-smoke.mimicry --confirm
 git diff --check
 ```
@@ -63,6 +64,7 @@ swift run mimicry validate ~/Desktop/manual-test.mimicry
 swift run mimicry inspect ~/Desktop/manual-test.mimicry
 swift run mimicry diff ~/Desktop/manual-test.mimicry
 swift run mimicry apply ~/Desktop/manual-test.mimicry --dry-run
+swift run mimicry export-browser-bookmarks ~/Desktop/manual-test.mimicry --output ~/Desktop/mimicry-browser-bookmarks.html
 ```
 
 `inspect` should show package metadata, source Mac metadata, section totals, classification and applicability summaries, captured items, review-required items, excluded items, unsupported items, warnings, and the no-mutation statement.
@@ -76,6 +78,8 @@ For Firefox, `inspect` should show a `firefox` section when profile bookmark dat
 `diff` should compare the snapshot to the current Mac and show matching, changed, missing, current-only, skipped, unsupported, snapshot-warning, and current-warning groups without mutating system settings.
 
 `apply --dry-run` should render install, configure, skip, blocked, and requires-user-action groups without mutating system settings. Browser sections should render review-required bookmark import previews that summarize importable, already-present, skipped, and blocked counts using sanitized title, folder path, and URL fingerprints.
+
+`export-browser-bookmarks` should write only the requested HTML artifact. It should export sanitized Safari, Chrome, and Firefox HTTP(S) bookmarks, skip duplicate fingerprints, skip unavailable sources and invalid URLs, and report that no browser profile, database, or system setting was changed.
 
 After reviewing the dry-run, the first real apply slice can be tested manually:
 
@@ -94,6 +98,7 @@ swift run mimicry apply ~/Desktop/manual-test.mimicry --confirm
 - Chrome multi-profile bookmark parsing, missing profile handling, unreadable JSON handling, and URL query/fragment redaction
 - Firefox multi-profile bookmark parsing, missing profile handling, unreadable SQLite handling, and URL query/fragment redaction
 - browser bookmark dry-run planning for importable, already-present, duplicate/skipped, and blocked bookmark cases
+- browser bookmark HTML export for sanitized bookmarks, duplicate skipping, invalid URL skipping, unavailable-source skipping, and no profile mutation
 - Terminal configuration metadata and secret-like shell value redaction
 - iCloud status metadata and authentication-state exclusion
 - provider registry lookup and ordering
@@ -111,6 +116,7 @@ swift run mimicry apply ~/Desktop/manual-test.mimicry --confirm
 - inspect renders a human-readable audit of captured, review-required, excluded, unsupported, and warning items
 - diff renders a human-readable comparison against the current snapshot
 - apply dry-run renders a human-readable action plan
+- export-browser-bookmarks writes a reviewable browser-import HTML artifact
 - non-dry-run apply without confirmation refuses to mutate system state
 - confirmed apply renders the Finder-safe apply summary
 - validate can read a fixture `.mimicry` package

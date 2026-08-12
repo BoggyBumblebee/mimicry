@@ -48,7 +48,7 @@ final class MimicryCLISmokeTests: XCTestCase {
     func testRootCommandExposesExpectedSubcommands() {
         XCTAssertEqual(
             MimicryCLIResponses.phaseOneSubcommandNames,
-            ["doctor", "snapshot", "inspect", "validate", "diff", "apply"]
+            ["doctor", "snapshot", "inspect", "validate", "diff", "apply", "export-browser-bookmarks"]
         )
     }
 
@@ -201,6 +201,30 @@ final class MimicryCLISmokeTests: XCTestCase {
         XCTAssertTrue(output.contains("Only explicitly classified safe Finder preferences were considered."))
     }
 
+    func testExportBrowserBookmarksWritesReviewableImportArtifact() throws {
+        let temporaryDirectory = try makeTemporaryDirectory()
+        let packageURL = temporaryDirectory.appendingPathComponent("fixture.mimicry")
+        let outputURL = temporaryDirectory.appendingPathComponent("browser-bookmarks.html")
+        let snapshot = MimicrySnapshot.browserBookmarkExportFixture()
+        _ = try MimicryPackageStore().write(snapshot: snapshot, to: packageURL)
+
+        let output = try MimicryCLIResponses.exportBrowserBookmarks(
+            packagePath: packageURL.path,
+            outputPath: outputURL.path
+        )
+        let html = try String(contentsOf: outputURL, encoding: .utf8)
+
+        XCTAssertTrue(output.contains("Mimicry Browser Bookmark Export"))
+        XCTAssertTrue(output.contains("Snapshot: \(packageURL.path)"))
+        XCTAssertTrue(output.contains("Output: \(outputURL.path)"))
+        XCTAssertTrue(output.contains("Browser sections: 1"))
+        XCTAssertTrue(output.contains("Bookmarks exported: 1"))
+        XCTAssertTrue(output.contains("Import this HTML file manually through the browser after reviewing it."))
+        XCTAssertTrue(output.contains("No browser profile, database, or system setting was changed."))
+        XCTAssertTrue(html.contains("<!DOCTYPE NETSCAPE-Bookmark-file-1>"))
+        XCTAssertTrue(html.contains("<A HREF=\"https://example.com/docs\">Example Docs</A>"))
+    }
+
     private func makeTemporaryDirectory() throws -> URL {
         let url = FileManager.default.temporaryDirectory
             .appendingPathComponent(UUID().uuidString, isDirectory: true)
@@ -332,6 +356,52 @@ private extension MimicrySnapshot {
                     ],
                     warnings: [
                         SnapshotWarning(code: "current-terminal-warning", message: "Current terminal warning")
+                    ]
+                )
+            ]
+        )
+    }
+
+    static func browserBookmarkExportFixture() -> MimicrySnapshot {
+        MimicrySnapshot(
+            mimicryVersion: "0.1.0",
+            createdAt: Date(timeIntervalSince1970: 1_786_492_800),
+            source: SnapshotSource(
+                macOSVersion: "26.0",
+                architecture: "arm64",
+                hardwareModel: "MacBookPro",
+                hostname: "reference-mac",
+                username: "cmb"
+            ),
+            sections: [
+                SnapshotSection(
+                    identifier: "safari",
+                    displayName: "Safari",
+                    capturedAt: Date(timeIntervalSince1970: 1_786_492_800),
+                    items: [
+                        SnapshotItem(
+                            key: "safari.bookmarks.source",
+                            value: .object([
+                                "status": "captured",
+                                "bookmarkCount": "1",
+                                "folderCount": "1",
+                                "redactedURLCount": "0"
+                            ]),
+                            classification: .userMustReview,
+                            applicability: .userSpecific
+                        ),
+                        SnapshotItem(
+                            key: "safari.bookmark.0001",
+                            value: .object([
+                                "type": "bookmark",
+                                "title": "Example Docs",
+                                "folderPath": "Bookmarks Bar",
+                                "url": "https://example.com/docs",
+                                "urlRedaction": "none"
+                            ]),
+                            classification: .userMustReview,
+                            applicability: .userSpecific
+                        )
                     ]
                 )
             ]

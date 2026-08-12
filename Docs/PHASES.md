@@ -105,16 +105,16 @@ Exit criteria:
 
 ## Phase 4: Browser Providers
 
-Status: In progress. Phase 4A adds read-only Safari bookmark inventory, Phase 4B adds read-only multi-profile Chrome bookmark inventory, Phase 4C adds read-only multi-profile Firefox bookmark inventory, and Phase 4D adds browser-specific dry-run restore planning. These browser slices include fixture coverage, URL query/fragment redaction, and idempotency-aware planning by sanitized bookmark fingerprint.
+Status: In progress. Phase 4A adds read-only Safari bookmark inventory, Phase 4B adds read-only multi-profile Chrome bookmark inventory, Phase 4C adds read-only multi-profile Firefox bookmark inventory, Phase 4D adds browser-specific dry-run restore planning, and Phase 4E adds a reviewable browser bookmark export handoff. These browser slices include fixture coverage, URL query/fragment redaction, idempotency-aware planning by sanitized bookmark fingerprint, and manual browser-native import artifacts without profile mutation.
 
 Goal: support safe browser state without copying private profiles.
 
 Deliverables:
 
-- Safari provider with iCloud-aware bookmark/configuration strategy. Read-only bookmark inventory and dry-run import planning are implemented; iCloud strategy and real import remain future Phase 4 work.
-- Chrome provider with multi-profile bookmark support. Read-only multi-profile bookmark inventory and dry-run import planning are implemented; real import remains future Phase 4 work.
-- Firefox provider with multi-profile bookmark support. Read-only multi-profile bookmark inventory and dry-run import planning are implemented; real import remains future Phase 4 work.
-- Browser snapshot inspection and restore planning. Dry-run restore planning is implemented for bookmark fingerprints; mutation remains deferred.
+- Safari provider with iCloud-aware bookmark/configuration strategy. Read-only bookmark inventory, dry-run import planning, and HTML export handoff are implemented; iCloud strategy and direct profile import remain future Phase 4 work.
+- Chrome provider with multi-profile bookmark support. Read-only multi-profile bookmark inventory, dry-run import planning, and HTML export handoff are implemented; direct profile import remains future Phase 4 work.
+- Firefox provider with multi-profile bookmark support. Read-only multi-profile bookmark inventory, dry-run import planning, and HTML export handoff are implemented; direct profile import remains future Phase 4 work.
+- Browser snapshot inspection and restore planning. Dry-run restore planning is implemented for bookmark fingerprints; HTML export provides a manual import handoff while profile mutation remains deferred.
 - Tests using fixture bookmark files.
 
 Exit criteria:
@@ -122,6 +122,7 @@ Exit criteria:
 - No provider copies cookies, passwords, browser tokens, sessions, or profile encryption keys.
 - Bookmark imports are idempotent in dry-run planning.
 - Multiple profiles are visible and reviewable.
+- Browser bookmark restore can proceed through a reviewed HTML handoff without Mimicry writing browser profile files.
 
 ## Phase 5: Broader Apply, Backups, Rollback
 

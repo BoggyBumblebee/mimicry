@@ -56,6 +56,7 @@ CLI responsibilities:
 - `mimicry validate`
 - `mimicry diff`
 - `mimicry apply`
+- `mimicry export-browser-bookmarks`
 - `mimicry doctor`
 
 The GUI and CLI must call the same underlying implementation. No duplicated behavior between app and CLI.
@@ -118,6 +119,8 @@ Phase 4B adds read-only Chrome bookmark inventory. `ChromeBookmarksProvider` sca
 Phase 4C adds read-only Firefox bookmark inventory. `FirefoxBookmarksProvider` discovers profiles from `~/Library/Application Support/Firefox/profiles.ini` with a fallback scan of the `Profiles` directory, queries bookmark rows from each profile `places.sqlite` database through the shared command-runner abstraction, records profile/folder/bookmark metadata as review-required user-specific snapshot items, and uses the shared browser bookmark URL sanitizer. The provider does not inspect Firefox cookies, non-bookmark browsing history, sessions, website storage, passwords, autofill, extensions, account state, Sync state, preferences, form history, downloads, login databases, or profile encryption keys. Import/apply behavior remains deferred until browser snapshot inspection and diff behavior are trusted.
 
 Phase 4D adds browser-specific dry-run restore planning inside `SnapshotApplyPlanner`. Safari, Chrome, and Firefox sections now produce one review-required browser preview action instead of many generic bookmark item actions. The preview compares sanitized bookmark fingerprints made from title, folder path, and URL, then reports importable, already-present, skipped, and blocked counts. The planner does not write browser files, invoke browser import tools, or mutate profiles; real bookmark import remains a later explicitly reviewed apply slice.
+
+Phase 4E adds `BrowserBookmarkImportExporter` and the `mimicry export-browser-bookmarks` CLI handoff. The exporter reads sanitized bookmark snapshot items, skips duplicate fingerprints, invalid or non-HTTP(S) URLs, and unavailable browser sources, then writes a Netscape-style HTML import file to the explicit output path. This is a manual browser-native import artifact, not a provider apply path: Mimicry still does not write browser profiles, databases, preferences, cookies, sessions, passwords, or account state.
 
 ## Existing Project Context
 

@@ -8,7 +8,8 @@ public enum MimicryCLIResponses {
         "inspect",
         "validate",
         "diff",
-        "apply"
+        "apply",
+        "export-browser-bookmarks"
     ]
 
     public static func doctor(capabilities: MacCapabilities) -> String {
@@ -91,6 +92,16 @@ public enum MimicryCLIResponses {
         return SnapshotApplyPlanRenderer(packagePath: packagePath, plan: plan).render()
     }
 
+    public static func exportBrowserBookmarks(packagePath: String, outputPath: String) throws -> String {
+        let package = try MimicryPackageStore().read(from: URL(fileURLWithPath: packagePath))
+        let outputURL = URL(fileURLWithPath: outputPath).standardizedFileURL
+        let result = try BrowserBookmarkImportExporter().export(snapshot: package.snapshot, to: outputURL)
+        return BrowserBookmarkImportExportRenderer(
+            packagePath: packagePath,
+            result: result
+        ).render()
+    }
+
     public static func confirmedApply(packagePath: String, summary: FinderPreferenceApplySummary) -> String {
         var lines = [
             "Mimicry Apply",
@@ -116,6 +127,28 @@ public enum MimicryCLIResponses {
         lines.append("")
         lines.append("Only explicitly classified safe Finder preferences were considered.")
         return lines.joined(separator: "\n")
+    }
+}
+
+private struct BrowserBookmarkImportExportRenderer {
+    var packagePath: String
+    var result: BrowserBookmarkImportResult
+
+    func render() -> String {
+        [
+            "Mimicry Browser Bookmark Export",
+            "===============================",
+            "Snapshot: \(packagePath)",
+            "Output: \(result.outputURL.path)",
+            "Browser sections: \(result.summary.browserSectionCount)",
+            "Bookmarks exported: \(result.summary.exportedBookmarkCount)",
+            "Duplicates skipped: \(result.summary.skippedDuplicateCount)",
+            "Invalid URLs skipped: \(result.summary.skippedInvalidCount)",
+            "Unavailable sources skipped: \(result.summary.skippedUnavailableSourceCount)",
+            "",
+            "Import this HTML file manually through the browser after reviewing it.",
+            "No browser profile, database, or system setting was changed."
+        ].joined(separator: "\n")
     }
 }
 

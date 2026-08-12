@@ -16,7 +16,8 @@ struct MimicryRootCommand: AsyncParsableCommand {
             Inspect.self,
             Validate.self,
             Diff.self,
-            Apply.self
+            Apply.self,
+            ExportBrowserBookmarks.self
         ]
     )
 }
@@ -132,5 +133,25 @@ struct Apply: AsyncParsableCommand {
                 currentSnapshot: currentSnapshot
             ))
         }
+    }
+}
+
+struct ExportBrowserBookmarks: AsyncParsableCommand {
+    static let configuration = CommandConfiguration(
+        commandName: "export-browser-bookmarks",
+        abstract: "Export sanitized browser bookmarks from a snapshot to an HTML import file."
+    )
+
+    @Argument(help: "Path to a .mimicry package.")
+    var packagePath: String
+
+    @Option(name: .long, help: "Output browser-importable HTML file path.")
+    var output: String
+
+    func run() async throws {
+        print(try MimicryCLIResponses.exportBrowserBookmarks(
+            packagePath: packagePath,
+            outputPath: output
+        ))
     }
 }
