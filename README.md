@@ -14,6 +14,21 @@ Mimicry is not a backup tool, disk clone, or credential migration utility. It sh
 
 The full build prompt is tracked in [PROMPT.md](PROMPT.md).
 
+## Codex Collaboration
+
+This project is being planned and built with Codex as an implementation partner.
+
+Codex has been used to:
+
+- initialize the repository
+- create and push the GitHub project
+- import the original build prompt as `PROMPT.md`
+- inspect related BoggyBumblebee projects
+- turn the build prompt into this implementation roadmap
+- capture architecture, tooling, safety, and delivery decisions before coding begins
+
+Future implementation work should continue to make Codex-generated changes easy to review: small commits, explicit phase boundaries, tests with each meaningful behavior change, and documentation updates whenever the architecture or supported behavior changes.
+
 ## Product Goal
 
 Mimicry exists to replace the fragile parts of an Ansible-style Mac setup workflow with a modern macOS-native app. It should preserve the useful intent of a playbook: applications, Homebrew packages, App Store apps, shell setup, Finder preferences, browser bookmarks, and user-visible configuration. It should discard the unsafe parts: blindly copying files, storing credentials, bypassing macOS authentication, and assuming settings still work across macOS releases.
@@ -48,6 +63,7 @@ Primary tools:
 - Swift 6 and Swift Package Manager for core modules, provider modules, and the CLI.
 - SwiftUI and AppKit integration where needed for a first-class macOS app.
 - macOS 15 as the minimum deployment target. Mimicry is intentionally not looking backward unless a narrow compatibility shim is cheap and safe.
+- App identity: `Mimicry`, bundle identifier `com.boggybumblebee.mimicry`, CLI executable `mimicry`.
 - Xcode as the main IDE, debugger, Instruments entry point, and UI test runner.
 - XcodeGen with `project.yml` so the Xcode project is reproducible and avoids noisy `.xcodeproj` churn.
 - GitHub Actions on macOS runners for build, unit test, and CLI validation.
@@ -80,6 +96,43 @@ Useful references:
 - XcodeGen project specification: https://github.com/yonaskolb/XcodeGen/blob/master/Docs/ProjectSpec.md
 - Apple configuration profile guidance: https://support.apple.com/guide/deployment/plan-your-configuration-profiles-dep9a318a393/web
 - Apple OSLog documentation: https://developer.apple.com/documentation/os/oslog
+- Apple Developer ID certificate guidance: https://developer.apple.com/help/account/certificates/create-developer-id-certificates
+- Apple notarization guidance: https://developer.apple.com/documentation/security/notarizing-macos-software-before-distribution
+
+## Xcode Signing and Distribution Setup
+
+Mimicry should be distributed outside the Mac App Store as a Developer ID signed and notarized macOS app. The Mac App Store sandbox is a poor fit because Mimicry needs to inspect local applications, shell files, package manager state, browser files, preferences, and system configuration.
+
+Development setup:
+
+1. Use Xcode with the Apple Developer account signed in under Xcode > Settings > Accounts.
+2. Use the bundle identifier `com.boggybumblebee.mimicry`.
+3. Set the macOS deployment target to `15.0`.
+4. Use automatic signing for local development if it keeps iteration smooth.
+5. Keep App Sandbox disabled for the MVP.
+6. Enable Hardened Runtime for Release builds.
+7. Do not enable overly broad entitlements preemptively. Add capabilities only when a provider proves it needs them.
+
+Developer ID release setup:
+
+1. Ensure the Apple Developer account has a Developer ID Application certificate available.
+2. If an installer package is introduced later, also create a Developer ID Installer certificate.
+3. Archive the app in Xcode.
+4. Open Window > Organizer.
+5. Select the archive and choose Distribute App.
+6. Select Developer ID as the distribution method.
+7. Upload for notarization through Xcode's workflow.
+8. Export the notarized app.
+9. Verify the exported app on a clean macOS account or machine before publishing.
+
+Automated release setup can come later with `notarytool` and `stapler`, but the first release path should use Xcode Organizer so signing, Hardened Runtime, and notarization failures are visible while the project is still young.
+
+CLI shipping model:
+
+- Ship the CLI with the app for now.
+- The CLI should use the same `MimicryCore` implementation as the app.
+- The app can later offer to install or update a symlink such as `/usr/local/bin/mimicry` or `~/.local/bin/mimicry`.
+- The symlink flow must explain what it changes and ask before modifying a shell-accessible location.
 
 ## Architecture
 
@@ -262,7 +315,9 @@ Decision: `.mimicry` starts as an inspectable package bundle. Add compressed exp
 
 Encrypted optional snapshot sections are part of the MVP.
 
-MVP encryption should be explicit and opt-in. The normal snapshot remains secret-free. If a provider supports a sensitive-but-useful setting later, Mimicry can place that section under `encrypted/` with clear user approval, strong warnings, checksums, and a separate restore path. No provider may silently place secrets in either the normal snapshot or encrypted sections.
+MVP encryption should be explicit, opt-in, and passphrase-based. The normal snapshot remains secret-free. If a provider supports a sensitive-but-useful setting later, Mimicry can place that section under `encrypted/` with clear user approval, strong warnings, checksums, and a separate restore path. No provider may silently place secrets in either the normal snapshot or encrypted sections.
+
+For MVP, do not store the encryption passphrase in Keychain. The user should type the passphrase when creating or restoring encrypted sections. Keychain convenience can be considered later after the encrypted section model has tests and real-world validation.
 
 ## Delivery Plan
 
@@ -474,8 +529,15 @@ Candidate post-MVP helper use cases:
 ## Resolved Decisions
 
 - Minimum macOS deployment target: macOS 15.
+- App identity: `Mimicry`, bundle identifier `com.boggybumblebee.mimicry`, CLI executable `mimicry`.
+- App sandbox: disabled for MVP. Mimicry needs broad local inspection and user-approved configuration access that does not fit the Mac App Store sandbox model.
+- Distribution: Developer ID signed and notarized app outside the Mac App Store.
 - `.mimicry` export format: start as an inspectable macOS package bundle; add compressed archive export later.
 - App and CLI shipping model: together for now. The CLI should live with the app bundle or be installed from it, but share the same core implementation.
+- CLI install behavior: app-bundled CLI first, optional symlink installer later for `/usr/local/bin/mimicry` or `~/.local/bin/mimicry`.
 - Privileged helper support: avoid a persistent helper in the MVP. Add one later only when a provider proves it needs root-level background capability.
 - Finder and Terminal scope: capture and apply as much as possible, but only when each setting is explicitly classified, validated, backed up where practical, and covered by tests.
-- Encrypted optional snapshot sections: MVP, opt-in, and never a license to silently capture secrets.
+- Encrypted optional snapshot sections: MVP, opt-in, passphrase-based, and never a license to silently capture secrets.
+- Project generation: commit `project.yml`; generate the Xcode project in the normal local workflow rather than treating generated project churn as the source of truth.
+- Documentation split: keep README as the map, then move deep detail into `ARCHITECTURE.md`, `SNAPSHOT-FORMAT.md`, `SECURITY.md`, `PROVIDERS.md`, `DEVELOPMENT.md`, `TESTING.md`, and `COMPATIBILITY.md` after scaffold.
+- First implementation slice: no real system mutation. Build skeleton, models, CLI shell, package reader/writer, and tests first.
