@@ -20,21 +20,21 @@ The full build prompt is tracked in [PROMPT.md](PROMPT.md).
 
 ## Current Status
 
-Phase 0, Phase 1, Phase 2, and Phase 3 are done. Phase 4 has started with read-only Safari, Chrome, and Firefox bookmark inventory. Mimicry can create, validate, richly inspect, diff, dry-run apply, and perform the first narrow confirmed apply from a `.mimicry` snapshot package containing environment, Homebrew, App Store, Finder, Terminal, iCloud, Safari, Chrome, and Firefox sections.
+Phase 0, Phase 1, Phase 2, and Phase 3 are done. Phase 4 has started with read-only Safari, Chrome, and Firefox bookmark inventory plus browser-specific dry-run restore planning. Mimicry can create, validate, richly inspect, diff, dry-run apply, and perform the first narrow confirmed apply from a `.mimicry` snapshot package containing environment, Homebrew, App Store, Finder, Terminal, iCloud, Safari, Chrome, and Firefox sections.
 
 Current scaffold includes:
 
 - Swift package with `MimicryCore`, `MimicryCLISupport`, and `mimicry` CLI targets.
 - XcodeGen configuration in `project.yml`.
 - SwiftUI app shell.
-- CLI command shells, with `mimicry doctor` reporting read-only local diagnostics, `mimicry snapshot` writing the first real package sections, `mimicry inspect` rendering a human-readable audit of captured, review-required, excluded, unsupported, and warning items, `mimicry diff` comparing a snapshot to the current Mac, `mimicry apply --dry-run` rendering the first action plan, and `mimicry apply --confirm` applying only explicitly safe Finder boolean/string preferences with a backup.
+- CLI command shells, with `mimicry doctor` reporting read-only local diagnostics, `mimicry snapshot` writing the first real package sections, `mimicry inspect` rendering a human-readable audit of captured, review-required, excluded, unsupported, and warning items, `mimicry diff` comparing a snapshot to the current Mac, `mimicry apply --dry-run` rendering action plans including browser bookmark import previews, and `mimicry apply --confirm` applying only explicitly safe Finder boolean/string preferences with a backup.
 - Core snapshot, provider, log, command-runner, and `.mimicry` package models.
 - Capability detection, Phase 2 providers for environment, Homebrew, and App Store inventory, Phase 3 providers for Finder, Terminal, and iCloud inventory, and Phase 4 Safari, Chrome, and Firefox bookmark inventory providers.
 - Unit tests for snapshot JSON, package checksums, fake command execution, provider registry, capabilities, providers, snapshot building, dry-run planning, confirmed Finder apply behavior, and CLI smoke behavior.
 - GitHub Actions workflow for macOS validation.
 - SonarCloud configuration, coverage conversion, and README quality badges.
 
-Most commands remain non-mutating. Safari, Chrome, and Firefox bookmarks are currently read-only and review-required; bookmark URL query strings and fragments are removed during capture. The only current mutation path is `mimicry apply --confirm`, which is intentionally limited to safe Finder preferences, writes a backup first when changes are required, and does not delete preferences or copy user-specific values.
+Most commands remain non-mutating. Safari, Chrome, and Firefox bookmarks are currently read-only and review-required; bookmark URL query strings and fragments are removed during capture, and dry-run planning summarizes importable, already-present, skipped, and blocked bookmark work without writing to any browser profile. The only current mutation path is `mimicry apply --confirm`, which is intentionally limited to safe Finder preferences, writes a backup first when changes are required, and does not delete preferences or copy user-specific values.
 
 ## Documentation
 

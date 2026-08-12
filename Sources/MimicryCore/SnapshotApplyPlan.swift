@@ -24,7 +24,11 @@ public struct SnapshotApplyPlanner: Sendable {
     public func plan(reference: MimicrySnapshot, current: MimicrySnapshot) -> SnapshotApplyPlan {
         let diff = diffEngine.diff(reference: reference, current: current)
         let actions = diff.sections.flatMap { section in
-            section.items.compactMap { item in
+            if BrowserBookmarkApplyPlanner.isBrowserSection(section.identifier) {
+                return BrowserBookmarkApplyPlanner(section: section).actions()
+            }
+
+            return section.items.compactMap { item in
                 plannedAction(section: section, item: item)
             }
         }
@@ -104,5 +108,133 @@ public struct SnapshotApplyPlanner: Sendable {
         case .unsupported:
             return "unsupported"
         }
+    }
+}
+
+private struct BrowserBookmarkApplyPlanner {
+    private static let browserSectionIdentifiers = Set(["safari", "chrome", "firefox"])
+
+    private let section: SnapshotSectionDiff
+
+    init(section: SnapshotSectionDiff) {
+        self.section = section
+    }
+
+    static func isBrowserSection(_ identifier: String) -> Bool {
+        browserSectionIdentifiers.contains(identifier)
+    }
+
+    func actions() -> [PlannedAction] {
+        let preview = preview()
+        guard preview.hasWork else {
+            return []
+        }
+
+        return [
+            PlannedAction(
+                providerIdentifier: section.identifier,
+                kind: .requiresUserAction,
+                summary: "\(section.displayName) bookmark import preview: \(preview.importableCount) importable, \(preview.alreadyPresentCount) already present, \(preview.skippedCount) skipped, \(preview.blockedCount) blocked; import is not implemented yet and requires user review."
+            )
+        ]
+    }
+
+    private func preview() -> BrowserBookmarkApplyPreview {
+        var preview = BrowserBookmarkApplyPreview()
+        var seenReferenceFingerprints: Set<BrowserBookmarkFingerprint> = []
+        let currentFingerprints = Set(section.items.compactMap(currentBookmarkFingerprint))
+
+        for item in section.items {
+            guard let referenceFingerprint = referenceBookmarkFingerprint(item) else {
+                continue
+            }
+
+            guard !seenReferenceFingerprints.contains(referenceFingerprint) else {
+                preview.skippedCount += 1
+                continue
+            }
+
+            seenReferenceFingerprints.insert(referenceFingerprint)
+            if currentFingerprints.contains(referenceFingerprint) {
+                preview.alreadyPresentCount += 1
+            } else {
+                preview.importableCount += 1
+            }
+        }
+
+        if let sourceStatus = referenceSourceStatus() {
+            switch sourceStatus {
+            case "absent":
+                preview.skippedCount += 1
+            case "unreadable":
+                preview.blockedCount += 1
+            default:
+                break
+            }
+        }
+
+        return preview
+    }
+
+    private func referenceBookmarkFingerprint(_ item: SnapshotItemDiff) -> BrowserBookmarkFingerprint? {
+        guard item.key.contains(".bookmark.") else {
+            return nil
+        }
+
+        return BrowserBookmarkFingerprint(value: item.referenceValue)
+    }
+
+    private func currentBookmarkFingerprint(_ item: SnapshotItemDiff) -> BrowserBookmarkFingerprint? {
+        guard item.key.contains(".bookmark.") else {
+            return nil
+        }
+
+        return BrowserBookmarkFingerprint(value: item.currentValue)
+    }
+
+    private func referenceSourceStatus() -> String? {
+        let sourceKey = "\(section.identifier).bookmarks.source"
+        guard let source = section.items.first(where: { $0.key == sourceKey })?.referenceValue,
+              case let .object(values) = source
+        else {
+            return nil
+        }
+
+        return values["status"]
+    }
+}
+
+private struct BrowserBookmarkApplyPreview: Equatable, Sendable {
+    var importableCount = 0
+    var alreadyPresentCount = 0
+    var skippedCount = 0
+    var blockedCount = 0
+
+    var hasWork: Bool {
+        importableCount > 0
+            || alreadyPresentCount > 0
+            || skippedCount > 0
+            || blockedCount > 0
+    }
+}
+
+private struct BrowserBookmarkFingerprint: Hashable, Sendable {
+    var title: String
+    var folderPath: String
+    var url: String
+
+    init?(value: SnapshotValue?) {
+        guard case let .object(values) = value,
+              values["type"] == "bookmark",
+              let title = values["title"],
+              let folderPath = values["folderPath"],
+              let url = values["url"]
+        else {
+            return nil
+        }
+
+        self.title = title
+        self.folderPath = folderPath
+        self.url = url
     }
 }

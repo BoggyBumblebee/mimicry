@@ -75,7 +75,7 @@ For Firefox, `inspect` should show a `firefox` section when profile bookmark dat
 
 `diff` should compare the snapshot to the current Mac and show matching, changed, missing, current-only, skipped, unsupported, snapshot-warning, and current-warning groups without mutating system settings.
 
-`apply --dry-run` should render install, configure, skip, blocked, and requires-user-action groups without mutating system settings.
+`apply --dry-run` should render install, configure, skip, blocked, and requires-user-action groups without mutating system settings. Browser sections should render review-required bookmark import previews that summarize importable, already-present, skipped, and blocked counts using sanitized title, folder path, and URL fingerprints.
 
 After reviewing the dry-run, the first real apply slice can be tested manually:
 
@@ -93,6 +93,7 @@ swift run mimicry apply ~/Desktop/manual-test.mimicry --confirm
 - Safari bookmark parsing, missing bookmark handling, unreadable plist handling, and URL query/fragment redaction
 - Chrome multi-profile bookmark parsing, missing profile handling, unreadable JSON handling, and URL query/fragment redaction
 - Firefox multi-profile bookmark parsing, missing profile handling, unreadable SQLite handling, and URL query/fragment redaction
+- browser bookmark dry-run planning for importable, already-present, duplicate/skipped, and blocked bookmark cases
 - Terminal configuration metadata and secret-like shell value redaction
 - iCloud status metadata and authentication-state exclusion
 - provider registry lookup and ordering

@@ -82,6 +82,8 @@ Terminal providers must refuse or redact likely secrets by default.
 
 Homebrew absence, `mas` absence, unreadable Finder preferences, unreadable Terminal files, Terminal files containing secret-like values, iCloud states requiring user action, and missing or unreadable Safari, Chrome, or Firefox bookmarks are represented as warnings or absent/redacted/reviewable values inside the relevant section. Snapshot, inspect, validate, diff, and dry-run apply do not install, remove, upgrade, sign in, write preferences, edit shell files, read synced document contents, import bookmarks, or change system settings.
 
+`mimicry apply --dry-run` now renders browser bookmark import previews for Safari, Chrome, and Firefox sections. These previews compare sanitized bookmark fingerprints by title, folder path, and URL, then summarize how many bookmarks appear importable, already present, skipped, or blocked. They are review-only `requiresUserAction` actions; real bookmark import/apply is not implemented yet.
+
 ## Finder Preferences
 
 The Finder provider captures a conservative read-only inventory of stable `com.apple.finder` preferences through `defaults read`, including visibility controls, view style, search scope, new-window target metadata, trash warning behavior, and desktop device visibility toggles.
@@ -108,7 +110,7 @@ The Safari provider captures read-only bookmark and folder metadata from `~/Libr
 
 Safari bookmark data is marked `userMustReview` and `userSpecific`. Bookmark URL query strings and fragments are removed before capture because they can contain search terms, tracking data, tokens, or other private state. Missing bookmarks, unreadable plist data, and URL redaction counts are surfaced as warnings or source metadata.
 
-The provider does not read cookies, history, passwords, sessions, autofill data, profile encryption keys, extensions, website storage, or Safari account state. Safari bookmark import/apply is not implemented yet.
+The provider does not read cookies, history, passwords, sessions, autofill data, profile encryption keys, extensions, website storage, or Safari account state. Safari bookmark dry-run import preview is implemented; real import/apply is not implemented yet.
 
 ## Chrome Bookmarks
 
@@ -116,7 +118,7 @@ The Chrome provider captures read-only bookmark and folder metadata from direct 
 
 Chrome bookmark data is marked `userMustReview` and `userSpecific`. Bookmark URL query strings and fragments are removed before capture because they can contain search terms, tracking data, tokens, or other private state. Missing profiles, unreadable bookmark JSON, and URL redaction counts are surfaced as warnings or source metadata.
 
-The provider does not read Chrome cookies, history, passwords, sessions, autofill data, profile encryption keys, extensions, website storage, account state, Sync state, Local State, Preferences, or browser databases. Chrome bookmark import/apply is not implemented yet.
+The provider does not read Chrome cookies, history, passwords, sessions, autofill data, profile encryption keys, extensions, website storage, account state, Sync state, Local State, Preferences, or browser databases. Chrome bookmark dry-run import preview is implemented; real import/apply is not implemented yet.
 
 ## Firefox Bookmarks
 
@@ -124,4 +126,4 @@ The Firefox provider captures read-only bookmark and folder metadata from Firefo
 
 Firefox bookmark data is marked `userMustReview` and `userSpecific`. Bookmark URL query strings and fragments are removed before capture because they can contain search terms, tracking data, tokens, or other private state. Missing profiles, unreadable SQLite bookmark data, and URL redaction counts are surfaced as warnings or source metadata.
 
-The provider does not read Firefox cookies, history pages beyond bookmark URL rows, passwords, sessions, autofill data, profile encryption keys, extensions, website storage, account state, Sync state, preferences, form history, downloads, or login databases. Firefox bookmark import/apply is not implemented yet.
+The provider does not read Firefox cookies, history pages beyond bookmark URL rows, passwords, sessions, autofill data, profile encryption keys, extensions, website storage, account state, Sync state, preferences, form history, downloads, or login databases. Firefox bookmark dry-run import preview is implemented; real import/apply is not implemented yet.
