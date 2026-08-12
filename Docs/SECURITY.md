@@ -82,9 +82,9 @@ iCloud is treated as user-action-only for authentication and sync state. Mimicry
 
 ## Browser Data Handling
 
-Browser providers must never copy private profiles wholesale. The first Safari slice reads only bookmark/folder metadata from Safari's bookmarks plist. It marks bookmark data as user-specific and review-required, removes URL query strings and fragments before capture, and reports when that redaction happened.
+Browser providers must never copy private profiles wholesale. The Safari slice reads only bookmark/folder metadata from Safari's bookmarks plist. The Chrome slice reads only bookmark/folder metadata from direct Chrome profile `Bookmarks` JSON files. Browser bookmark data is marked user-specific and review-required, URL query strings and fragments are removed before capture, and redaction is reported when it happens.
 
-Mimicry does not read browser cookies, passwords, sessions, history, autofill, website storage, profile encryption keys, extension authentication state, or browser account tokens.
+Mimicry does not read browser cookies, passwords, sessions, history, autofill, website storage, profile encryption keys, extension authentication state, Sync state, Local State, Preferences, browser databases, or browser account tokens.
 
 ## Confirmed Apply Boundary
 

@@ -116,7 +116,7 @@ public struct SafariBookmarksProvider: ConfigurationProvider {
         SnapshotItem(
             key: "safari.bookmarks.source",
             value: .object([
-                "path": "~/Library/Safari/Bookmarks.plist",
+                "path": DisplayPathFormatter.userFacingPath(for: bookmarksURL),
                 "status": status,
                 "folderCount": String(extraction.folderCount),
                 "bookmarkCount": String(extraction.bookmarkCount),
@@ -142,6 +142,8 @@ public struct SafariBookmarksProvider: ConfigurationProvider {
 }
 
 private struct SafariBookmarkExtractor {
+    private let sanitizer = BrowserBookmarkURLSanitizer()
+
     func extract(from root: [String: Any]) -> SafariBookmarkExtraction {
         guard let children = root["Children"] as? [[String: Any]] else {
             return .empty
@@ -189,7 +191,7 @@ private struct SafariBookmarkExtractor {
 
     private func visitBookmark(_ node: [String: Any], path: [String], extraction: inout SafariBookmarkExtraction) {
         let title = displayTitle(from: node, fallback: "Untitled Bookmark")
-        let sanitizedURL = SafariBookmarkURLSanitizer().sanitize(node["URLString"] as? String)
+        let sanitizedURL = sanitizer.sanitize(node["URLString"] as? String)
         extraction.bookmarkCount += 1
         if sanitizedURL.didRedact {
             extraction.redactedURLCount += 1
@@ -233,42 +235,6 @@ private struct SafariBookmarkExtractor {
 
     private func paddedIndex(_ index: Int) -> String {
         String(format: "%04d", index)
-    }
-}
-
-private struct SafariBookmarkURLSanitizer {
-    func sanitize(_ rawValue: String?) -> SafariSanitizedURL {
-        guard let rawValue, let trimmed = rawValue.trimmedNilIfEmpty else {
-            return SafariSanitizedURL(value: "absent", redaction: "none")
-        }
-
-        guard var components = URLComponents(string: trimmed) else {
-            return SafariSanitizedURL(value: "invalid", redaction: "invalid-url")
-        }
-
-        let hadQuery = components.query != nil
-        let hadFragment = components.fragment != nil
-        components.query = nil
-        components.fragment = nil
-
-        let redactions = [
-            hadQuery ? "query" : nil,
-            hadFragment ? "fragment" : nil
-        ].compactMap { $0 }
-
-        return SafariSanitizedURL(
-            value: components.string ?? trimmed,
-            redaction: redactions.isEmpty ? "none" : redactions.joined(separator: ",")
-        )
-    }
-}
-
-private struct SafariSanitizedURL: Equatable, Sendable {
-    var value: String
-    var redaction: String
-
-    var didRedact: Bool {
-        redaction != "none" && redaction != "invalid-url"
     }
 }
 

@@ -29,7 +29,8 @@ public struct MimicrySnapshotBuilder {
             FinderSnapshotProvider(),
             TerminalSnapshotProvider(),
             ICloudSnapshotProvider(),
-            SafariBookmarksProvider()
+            SafariBookmarksProvider(),
+            ChromeBookmarksProvider()
         ],
         mimicryVersion: String = "0.1.0",
         capabilitiesProvider: CapabilitiesProvider? = nil

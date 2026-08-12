@@ -24,7 +24,7 @@ final class SafariBookmarksProviderTests: XCTestCase {
             SnapshotItem(
                 key: "safari.bookmarks.source",
                 value: .object([
-                    "path": "~/Library/Safari/Bookmarks.plist",
+                    "path": bookmarksURL.path,
                     "status": "captured",
                     "folderCount": "2",
                     "bookmarkCount": "2",
@@ -78,8 +78,9 @@ final class SafariBookmarksProviderTests: XCTestCase {
     }
 
     func testSnapshotReportsMissingSafariBookmarksWithoutThrowing() async throws {
+        let bookmarksURL = try makeBookmarksURL()
         let provider = SafariBookmarksProvider(
-            bookmarksURL: try makeBookmarksURL(),
+            bookmarksURL: bookmarksURL,
             fileExists: { _ in false }
         )
 
@@ -92,7 +93,7 @@ final class SafariBookmarksProviderTests: XCTestCase {
                 SnapshotItem(
                     key: "safari.bookmarks.source",
                     value: .object([
-                        "path": "~/Library/Safari/Bookmarks.plist",
+                        "path": bookmarksURL.path,
                         "status": "absent",
                         "folderCount": "0",
                         "bookmarkCount": "0",

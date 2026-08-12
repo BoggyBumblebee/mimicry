@@ -105,14 +105,14 @@ Exit criteria:
 
 ## Phase 4: Browser Providers
 
-Status: In progress. Phase 4A adds read-only Safari bookmark inventory with fixture coverage and URL query/fragment redaction.
+Status: In progress. Phase 4A adds read-only Safari bookmark inventory, and Phase 4B adds read-only multi-profile Chrome bookmark inventory. Both browser slices include fixture coverage and URL query/fragment redaction.
 
 Goal: support safe browser state without copying private profiles.
 
 Deliverables:
 
 - Safari provider with iCloud-aware bookmark/configuration strategy. Read-only bookmark inventory is implemented; import planning and iCloud strategy remain future Phase 4 work.
-- Chrome provider with multi-profile bookmark support.
+- Chrome provider with multi-profile bookmark support. Read-only multi-profile bookmark inventory is implemented; import planning remains future Phase 4 work.
 - Firefox provider with multi-profile bookmark support.
 - Browser snapshot inspection and restore planning.
 - Tests using fixture bookmark files.
