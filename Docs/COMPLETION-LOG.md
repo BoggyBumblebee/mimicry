@@ -1,0 +1,22 @@
+# Completion Log
+
+This log records completed Mimicry setup, documentation, implementation, quality, and validation steps.
+
+Completion-log updates remain part of the definition of done. At each and every completed step, phase, or meaningful implementation slice, update this log before the work is considered complete.
+
+| Date | Step | Status | Commit | Validation |
+| --- | --- | --- | --- | --- |
+| 2026-08-12 | Repository setup and prompt import | Done | `927b8cf` | `PROMPT.md` imported, committed, and pushed to `origin/main` |
+| 2026-08-12 | Phase 0: Discovery and decisions | Done | `d434a0b` | Roadmap, toolchain, Xcode distribution setup, safety rules, open decisions, and resolved decisions documented and pushed to `origin/main` |
+| 2026-08-12 | Phase 1 scaffold slice: Swift package, XcodeGen config, SwiftUI shell, CLI shell, core models, `.mimicry` package store, fake command runner, and tests | Done | `a5289a3` | `swift test`, `xcodegen generate`, `xcodebuild ... build`, `xcodebuild ... test`, `swift run mimicry --help`, `swift run mimicry doctor` |
+| 2026-08-12 | Documentation split: README map plus focused docs under `Docs/` | Done | `35976a9` | README and docs reorganized; links and status checked |
+| 2026-08-12 | Phase 1 completion: capabilities shell, provider registry, testable CLI support target, CLI smoke tests, and macOS CI workflow | Done | `3ee1fa3` | `swift build`, `swift test`, `xcodegen generate`, `xcodebuild ... build`, `xcodebuild ... test`, app launch check, `swift run mimicry --help`, `swift run mimicry doctor`, `git diff --check` |
+| 2026-08-12 | SonarCloud setup: project properties, analysis workflow, coverage/test report converters, artifact ignore rule, and README badges | Done | `95e0408` | `bash -n`, `python3 -m py_compile`, `xcodegen generate`, `xcodebuild ... test`, report conversion scripts, `git diff --check` |
+| 2026-08-12 | SonarCloud activation: project analysis and README badge endpoints are live | Done | `3b43182` | SonarCloud quality gate and coverage badge endpoints return measure SVGs |
+| 2026-08-12 | Phase 2A doctor diagnostics: read-only capability detector, PASS/WARN/INFO/BLOCKED output, fake-runner tests, and CLI wiring | Done | `ac361f4` | `swift test`, `swift run mimicry doctor`, `xcodegen generate`, `xcodebuild ... test`, coverage gate 90.26%, `git diff --check` |
+| 2026-08-12 | Coverage denominator alignment: XcodeGen scheme now measures `MimicryCore` and `MimicryCLISupport`, runs CLI support tests, and excludes the thin CLI entry point from Sonar coverage | Done | `e2ac196` | `xcodegen generate`, `xcodebuild ... test`, Sonar XML coverage 92.15% (657/713) |
+| 2026-08-12 | Commit quality gate skill: reusable Codex guard created to prevent SonarCloud issue, debt, duplication, bug, or vulnerability regressions before commits | Done | `18a4332` | Skill validation passed; SonarCloud baseline captured as quality gate OK, 18 open issues, 0 bugs, 0 vulnerabilities, 315 minutes debt, 0.0% duplication |
+| 2026-08-12 | SonarCloud issue cleanup: refactored capability paths, capability grouping, and placeholder stubs to address the 18 live code-smell findings | Done | `18a4332` | `swift package clean`, `swift test`, `swift run mimicry doctor`, `xcodegen generate`, `xcodebuild ... test`, Sonar XML coverage 91.29% (744/815); local scans show no source absolute-path literals or empty blocks |
+| 2026-08-12 | Commit quality gate baseline raised to zero open SonarCloud issues | Done | `5458fbd` | Live SonarCloud check: quality gate OK, 0 open issues, 0 bugs, 0 vulnerabilities, 0 code smells, 0 minutes debt, 0.0% duplication, 91.3% coverage |
+| 2026-08-12 | Phase 2 completion: environment, Homebrew, and App Store snapshot providers plus `mimicry snapshot` package writing | Done | `5458fbd` | `swift test`, `xcodegen generate`, `xcodebuild ... test`, `swift run mimicry snapshot --output /tmp/mimicry-phase2b-smoke.mimicry`, `swift run mimicry inspect /tmp/mimicry-phase2b-smoke.mimicry`, `swift run mimicry validate /tmp/mimicry-phase2b-smoke.mimicry`, coverage gate 85.37% (1004/1176), quality gate OK with 0 open issues |
+| 2026-08-12 | Completion log split: moved the README completion table into `Docs/COMPLETION-LOG.md` and kept README as the project map | Done | `84aca9c` | Docs-only change; README links checked; `git diff --check` |
