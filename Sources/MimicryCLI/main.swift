@@ -1,5 +1,6 @@
 import ArgumentParser
 import MimicryCLISupport
+import MimicryCore
 
 @main
 @available(macOS 10.15, macCatalyst 13, iOS 13, tvOS 13, watchOS 6, *)
@@ -26,7 +27,8 @@ struct Doctor: AsyncParsableCommand {
     )
 
     func run() async throws {
-        print(MimicryCLIResponses.doctor())
+        let capabilities = await MacCapabilitiesDetector().detect()
+        print(MimicryCLIResponses.doctor(capabilities: capabilities))
     }
 }
 

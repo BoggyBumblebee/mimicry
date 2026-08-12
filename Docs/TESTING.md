@@ -44,11 +44,12 @@ python3 Scripts/xcresult-to-sonar-test-execution.py BuildArtifacts/Mimicry.xcres
 - Terminal configuration
 - provider registry lookup and ordering
 - capability model defaults
+- capability detector command-output parsing with fake runners
 
 ## CLI Tests
 
 - root command exposes expected subcommands
-- scaffold-only doctor output is explicit
+- doctor output renders capability findings without mutating system state
 - inspect and validate can read a fixture `.mimicry` package
 - placeholder commands echo requested snapshot paths without mutating system state
 

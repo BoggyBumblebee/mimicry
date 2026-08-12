@@ -2,6 +2,35 @@ import MimicryCore
 import XCTest
 
 final class CommandRunnerTests: XCTestCase {
+    func testProcessCommandRunnerExecutesCommandAndCapturesOutput() async throws {
+        let runner = ProcessCommandRunner()
+
+        let result = try await runner.run(
+            executable: URL(fileURLWithPath: "/bin/echo"),
+            arguments: ["mimicry"],
+            environment: nil
+        )
+
+        XCTAssertEqual(result.executable, "/bin/echo")
+        XCTAssertEqual(result.arguments, ["mimicry"])
+        XCTAssertEqual(result.exitCode, 0)
+        XCTAssertEqual(result.standardOutput, "mimicry\n")
+        XCTAssertEqual(result.standardError, "")
+    }
+
+    func testProcessCommandRunnerAppliesExplicitEnvironment() async throws {
+        let runner = ProcessCommandRunner()
+
+        let result = try await runner.run(
+            executable: URL(fileURLWithPath: "/usr/bin/env"),
+            arguments: [],
+            environment: ["MIMICRY_TEST_ENV": "available"]
+        )
+
+        XCTAssertEqual(result.exitCode, 0)
+        XCTAssertTrue(result.standardOutput.contains("MIMICRY_TEST_ENV=available"))
+    }
+
     func testFakeCommandRunnerRecordsInvocationAndReturnsSeededResult() async throws {
         let runner = FakeCommandRunner(results: [
             CommandResult(
@@ -32,5 +61,18 @@ final class CommandRunnerTests: XCTestCase {
                 environment: ["MIMICRY": "1"]
             )
         ])
+    }
+
+    func testFakeCommandRunnerReturnsDefaultSuccessWhenNoResultIsSeeded() async throws {
+        let runner = FakeCommandRunner()
+
+        let result = try await runner.run(
+            executable: URL(fileURLWithPath: "/usr/bin/example"),
+            arguments: [],
+            environment: nil
+        )
+
+        XCTAssertEqual(result.exitCode, 0)
+        XCTAssertEqual(result.executable, "/usr/bin/example")
     }
 }

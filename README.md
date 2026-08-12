@@ -20,14 +20,14 @@ The full build prompt is tracked in [PROMPT.md](PROMPT.md).
 
 ## Current Status
 
-Phase 0 and Phase 1 are done. Phase 2 is next.
+Phase 0 and Phase 1 are done. Phase 2A capability detection and `doctor` diagnostics are in progress.
 
 Current scaffold includes:
 
 - Swift package with `MimicryCore`, `MimicryCLISupport`, and `mimicry` CLI targets.
 - XcodeGen configuration in `project.yml`.
 - SwiftUI app shell.
-- CLI command shells.
+- CLI command shells, with `mimicry doctor` now reporting read-only local diagnostics.
 - Core snapshot, provider, log, command-runner, and `.mimicry` package models.
 - Capability and provider-registry scaffolding for Phase 2 providers.
 - Unit tests for snapshot JSON, package checksums, fake command execution, provider registry, capabilities, and CLI smoke behavior.
@@ -62,6 +62,7 @@ Codex has been used to:
 - scaffold the first non-mutating Phase 1 implementation slice
 - complete Phase 1 with capabilities scaffolding, provider registry, CLI smoke tests, and CI
 - configure SonarCloud analysis and README status badges following the Hodgepodge project pattern
+- start Phase 2A with read-only capability detection and structured `mimicry doctor` output
 
 Future implementation work should continue to make Codex-generated changes easy to review: small commits, explicit phase boundaries, tests with each meaningful behavior change, and documentation updates whenever the architecture or supported behavior changes.
 
@@ -90,6 +91,7 @@ The completion log should stay concise. Detailed technical documentation lives i
 | 2026-08-12 | Phase 1 completion: capabilities shell, provider registry, testable CLI support target, CLI smoke tests, and macOS CI workflow | Done | `3ee1fa3` | `swift build`, `swift test`, `xcodegen generate`, `xcodebuild ... build`, `xcodebuild ... test`, app launch check, `swift run mimicry --help`, `swift run mimicry doctor`, `git diff --check` |
 | 2026-08-12 | SonarCloud setup: project properties, analysis workflow, coverage/test report converters, artifact ignore rule, and README badges | Done | `95e0408` | `bash -n`, `python3 -m py_compile`, `xcodegen generate`, `xcodebuild ... test`, report conversion scripts, `git diff --check` |
 | 2026-08-12 | SonarCloud activation: project analysis and README badge endpoints are live | Done | `3b43182` | SonarCloud quality gate and coverage badge endpoints return measure SVGs |
+| 2026-08-12 | Phase 2A doctor diagnostics: read-only capability detector, PASS/WARN/INFO/BLOCKED output, fake-runner tests, and CLI wiring | Done | pending commit | `swift test`, `swift run mimicry doctor`, `xcodegen generate`, `xcodebuild ... test`, coverage gate 90.26%, `git diff --check` |
 
 ## Product Goal
 
@@ -124,7 +126,7 @@ After apply, the destination Mac should be configured as closely as practical to
 
 ## Quick Start
 
-Run the current non-mutating CLI shell:
+Run the current non-mutating doctor diagnostics:
 
 ```bash
 swift run mimicry doctor

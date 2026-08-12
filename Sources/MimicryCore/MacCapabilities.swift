@@ -76,15 +76,18 @@ public enum CapabilityState: String, Codable, Equatable, Sendable {
 public struct HomebrewCapability: Codable, Equatable, Sendable {
     public var isInstalled: Bool
     public var prefix: String?
+    public var version: String?
     public var architecture: MacArchitecture
 
     public init(
         isInstalled: Bool = false,
         prefix: String? = nil,
+        version: String? = nil,
         architecture: MacArchitecture = .unknown
     ) {
         self.isInstalled = isInstalled
         self.prefix = prefix
+        self.version = version
         self.architecture = architecture
     }
 }

@@ -37,6 +37,8 @@ Core responsibilities:
 - Command execution abstraction.
 - File backup and rollback support.
 
+`MacCapabilitiesDetector` is the Phase 2A read-only diagnostics entry point. It uses `ProcessCommandRunner` in production and `FakeCommandRunner` in tests so command-probe behavior remains covered without running real system commands in unit tests.
+
 App responsibilities:
 
 - Native SwiftUI navigation for Snapshot, Apply, Compare, History, Settings, and Diagnostics.

@@ -3,12 +3,38 @@ import MimicryCore
 import XCTest
 
 final class MimicryCLISmokeTests: XCTestCase {
-    func testDoctorOutputIsExplicitlyNonMutatingScaffold() {
-        let output = MimicryCLIResponses.doctor()
+    func testDoctorOutputRendersCapabilityFindingsWithoutMutatingSystemState() {
+        let output = MimicryCLIResponses.doctor(
+            capabilities: MacCapabilities(
+                macOSVersion: "Version 26.0",
+                architecture: .arm64,
+                hardwareModel: "MacBookPro18,3",
+                hostname: "reference-mac.local",
+                username: "cmb",
+                hasAdministratorPrivileges: true,
+                fileVaultState: .enabled,
+                sipState: .enabled,
+                hasCommandLineTools: true,
+                xcodeVersion: "Xcode 26.0",
+                homebrew: HomebrewCapability(
+                    isInstalled: true,
+                    prefix: "/opt/homebrew",
+                    version: "Homebrew 5.0.0",
+                    architecture: .arm64
+                ),
+                hasMAS: false,
+                iCloudState: .requiresUserAction,
+                appStoreState: .available,
+                managementState: .unknown
+            )
+        )
 
         XCTAssertTrue(output.contains("Mimicry Doctor"))
-        XCTAssertTrue(output.contains("Phase 1 scaffold only"))
-        XCTAssertTrue(output.contains("No system checks have been implemented yet."))
+        XCTAssertTrue(output.contains("[PASS] Command Line Tools"))
+        XCTAssertTrue(output.contains("[PASS] Homebrew"))
+        XCTAssertTrue(output.contains("[WARN] mas CLI"))
+        XCTAssertTrue(output.contains("[WARN] iCloud"))
+        XCTAssertTrue(output.contains("No system settings were changed."))
     }
 
     func testRootCommandExposesExpectedSubcommands() {

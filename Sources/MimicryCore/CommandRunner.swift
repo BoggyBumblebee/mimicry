@@ -8,6 +8,41 @@ public protocol CommandRunner: Sendable {
     ) async throws -> CommandResult
 }
 
+public struct ProcessCommandRunner: CommandRunner {
+    public init() {}
+
+    public func run(
+        executable: URL,
+        arguments: [String],
+        environment: [String: String]? = nil
+    ) async throws -> CommandResult {
+        try await Task.detached {
+            let process = Process()
+            process.executableURL = executable
+            process.arguments = arguments
+            if let environment {
+                process.environment = environment
+            }
+
+            let standardOutput = Pipe()
+            let standardError = Pipe()
+            process.standardOutput = standardOutput
+            process.standardError = standardError
+
+            try process.run()
+            process.waitUntilExit()
+
+            return CommandResult(
+                executable: executable.path,
+                arguments: arguments,
+                exitCode: process.terminationStatus,
+                standardOutput: String(data: standardOutput.fileHandleForReading.readDataToEndOfFile(), encoding: .utf8) ?? "",
+                standardError: String(data: standardError.fileHandleForReading.readDataToEndOfFile(), encoding: .utf8) ?? ""
+            )
+        }.value
+    }
+}
+
 public struct CommandResult: Codable, Equatable, Sendable {
     public var executable: String
     public var arguments: [String]

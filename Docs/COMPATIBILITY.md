@@ -8,9 +8,9 @@ Mimicry is intentionally not looking backward unless a narrow compatibility shim
 
 ## Capability Detection
 
-Phase 1 defines the `MacCapabilities` data model but does not perform real machine detection yet. Phase 2 will add the environment provider that populates it.
+Phase 2A adds a read-only `MacCapabilitiesDetector` used by `mimicry doctor`. It combines Foundation/Darwin system metadata with safe command probes and does not mutate settings.
 
-At startup, detect:
+Current doctor diagnostics detect:
 
 - macOS version
 - architecture
@@ -27,11 +27,11 @@ At startup, detect:
 - Homebrew
 - Homebrew architecture/prefix
 - `mas`
-- iCloud login state
-- App Store authentication state
-- configuration profiles / device management state
+- iCloud container availability as a sign-in hint
+- App Store application availability
+- configuration profile / device-management hints
 
-Do not hard-code assumptions about current macOS versions. Implement a capability-detection layer.
+Do not hard-code assumptions about current macOS versions. Extend the capability-detection layer as providers need more precise evidence.
 
 ## Hardware Applicability
 

@@ -26,6 +26,17 @@ final class SnapshotTests: XCTestCase {
         XCTAssertEqual(item.classification, .userMustReview)
         XCTAssertEqual(item.applicability, .userSpecific)
     }
+
+    func testSnapshotIdentifiableIDsUseStableKeys() {
+        let section = SnapshotSection(identifier: "environment", displayName: "Environment")
+        let item = SnapshotItem(key: "architecture", value: .string("arm64"))
+        let warning = SnapshotWarning(code: "redacted", message: "Sensitive value redacted.")
+
+        XCTAssertEqual(section.id, "environment")
+        XCTAssertEqual(item.id, "architecture")
+        XCTAssertEqual(warning.id, "redacted")
+        XCTAssertEqual(warning.message, "Sensitive value redacted.")
+    }
 }
 
 extension MimicrySnapshot {
