@@ -39,7 +39,8 @@ Each provider must classify data as:
 - Finder basics: implemented for stable preference inventory through `defaults read`, with the first confirmed safe apply path for boolean/string preferences through `defaults write`.
 - Terminal basics: implemented for read-only shell metadata and shell config-file metadata with secret-like values redacted.
 - iCloud state detection: implemented for read-only status metadata and required-user-action reporting without authentication capture.
-- Safari bookmarks/configuration
+- Safari bookmarks: implemented for read-only bookmark/folder metadata from `Bookmarks.plist`, with query strings and fragments removed from bookmark URLs.
+- Safari configuration
 - Chrome bookmarks
 - Firefox bookmarks
 
@@ -67,7 +68,7 @@ Terminal providers must refuse or redact likely secrets by default.
 
 ## Current Snapshot Behavior
 
-`mimicry snapshot` currently writes six non-mutating sections:
+`mimicry snapshot` currently writes seven sections:
 
 - `environment`
 - `homebrew`
@@ -75,8 +76,9 @@ Terminal providers must refuse or redact likely secrets by default.
 - `finder`
 - `terminal`
 - `icloud`
+- `safari`
 
-Homebrew absence, `mas` absence, unreadable Finder preferences, unreadable Terminal files, Terminal files containing secret-like values, and iCloud states requiring user action are represented as warnings or absent/redacted/reviewable values inside the relevant section. Snapshot, inspect, validate, diff, and dry-run apply do not install, remove, upgrade, sign in, write preferences, edit shell files, read synced document contents, or change system settings.
+Homebrew absence, `mas` absence, unreadable Finder preferences, unreadable Terminal files, Terminal files containing secret-like values, iCloud states requiring user action, and missing or unreadable Safari bookmarks are represented as warnings or absent/redacted/reviewable values inside the relevant section. Snapshot, inspect, validate, diff, and dry-run apply do not install, remove, upgrade, sign in, write preferences, edit shell files, read synced document contents, import bookmarks, or change system settings.
 
 ## Finder Preferences
 
@@ -97,3 +99,11 @@ Shell configuration contents are not stored. Files with private-key markers, tok
 The iCloud provider captures local status metadata only: capability state, whether the expected iCloud Drive container path exists, and an explicit marker that authentication state is excluded. Missing local metadata is represented as `requiresUserAction`.
 
 The provider does not read iCloud account databases, sync databases, document contents, tokens, sessions, cookies, Keychain items, or credentials.
+
+## Safari Bookmarks
+
+The Safari provider captures read-only bookmark and folder metadata from `~/Library/Safari/Bookmarks.plist` when it is present. Captured items include folder titles, folder paths, bookmark titles, bookmark folder paths, sanitized bookmark URLs, and counts for folders, bookmarks, and redacted URLs.
+
+Safari bookmark data is marked `userMustReview` and `userSpecific`. Bookmark URL query strings and fragments are removed before capture because they can contain search terms, tracking data, tokens, or other private state. Missing bookmarks, unreadable plist data, and URL redaction counts are surfaced as warnings or source metadata.
+
+The provider does not read cookies, history, passwords, sessions, autofill data, profile encryption keys, extensions, website storage, or Safari account state. Safari bookmark import/apply is not implemented yet.

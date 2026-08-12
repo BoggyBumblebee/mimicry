@@ -80,6 +80,12 @@ Terminal shell configuration is treated as potentially sensitive by default. Mim
 
 iCloud is treated as user-action-only for authentication and sync state. Mimicry records local status metadata and whether the expected iCloud Drive container is present, but it does not read iCloud account databases, sync databases, document contents, Keychain items, tokens, sessions, cookies, or credentials.
 
+## Browser Data Handling
+
+Browser providers must never copy private profiles wholesale. The first Safari slice reads only bookmark/folder metadata from Safari's bookmarks plist. It marks bookmark data as user-specific and review-required, removes URL query strings and fragments before capture, and reports when that redaction happened.
+
+Mimicry does not read browser cookies, passwords, sessions, history, autofill, website storage, profile encryption keys, extension authentication state, or browser account tokens.
+
 ## Confirmed Apply Boundary
 
 The first real apply path is deliberately narrow. `mimicry apply --confirm` only writes explicitly safe Finder boolean/string preferences from the `com.apple.finder` domain after comparing the snapshot to the current Mac. It skips user-specific paths, unsupported values, absent values, excluded values, managed values, hardware-specific values, sensitive values, and anything outside Finder.

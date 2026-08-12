@@ -28,6 +28,10 @@ final class MimicrySnapshotBuilderTests: XCTestCase {
                 ICloudSnapshotProvider(
                     homeDirectory: temporaryDirectory,
                     fileExists: { _ in false }
+                ),
+                SafariBookmarksProvider(
+                    bookmarksURL: temporaryDirectory.appendingPathComponent("Bookmarks.plist"),
+                    fileExists: { _ in false }
                 )
             ],
             capabilitiesProvider: {
@@ -39,7 +43,7 @@ final class MimicrySnapshotBuilderTests: XCTestCase {
         let package = try MimicryPackageStore().read(from: packageURL)
 
         XCTAssertEqual(result.package.url.path, packageURL.standardizedFileURL.path)
-        XCTAssertEqual(package.snapshot.sections.map(\.identifier), ["environment", "homebrew", "app-store", "finder", "terminal", "icloud"])
+        XCTAssertEqual(package.snapshot.sections.map(\.identifier), ["environment", "homebrew", "app-store", "finder", "terminal", "icloud", "safari"])
         XCTAssertEqual(package.snapshot.source.hostname, "reference-mac.local")
         XCTAssertTrue(package.snapshot.sections.flatMap(\.warnings).contains(SnapshotWarning(code: "app-store.mas-unavailable", message: "`mas` was not available; App Store applications were not captured.")))
     }

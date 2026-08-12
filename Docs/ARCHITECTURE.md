@@ -109,6 +109,10 @@ Slice C adds a core dry-run apply planner. It consumes the diff report and maps 
 
 Slice D adds the first narrow mutation path behind `apply --confirm`. It compares the snapshot's Finder section with the current Mac, selects only safe `com.apple.finder` boolean/string preferences, skips absent values and user-specific paths, writes a JSON backup of the current Finder section before any command runs, and executes `defaults write` through the shared command-runner abstraction. Plain `apply` continues to refuse, and `apply --dry-run` remains the review-first workflow.
 
+## Phase 4 Browser Slice
+
+Phase 4A adds the first browser provider as read-only Safari bookmark inventory. `SafariBookmarksProvider` reads `~/Library/Safari/Bookmarks.plist`, walks Safari bookmark folders and leaves, records folder/bookmark metadata as review-required user-specific snapshot items, and removes query strings and fragments from bookmark URLs before capture. The provider does not inspect Safari profiles, cookies, history, sessions, website storage, passwords, autofill, extensions, account state, or profile encryption keys. Import/apply behavior remains deferred until browser snapshot inspection and diff behavior are trusted.
+
 ## Existing Project Context
 
 The implementation should learn from nearby BoggyBumblebee projects:

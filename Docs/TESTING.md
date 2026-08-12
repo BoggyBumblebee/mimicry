@@ -50,7 +50,7 @@ The total must stay above 80%, preferably with meaningful headroom.
 - sensitive-data filtering
 - package checksums
 - package corruption detection
-- snapshot builder writes environment, Homebrew, and App Store sections
+- snapshot builder writes environment, Homebrew, App Store, Finder, Terminal, iCloud, and Safari sections
 
 ## Manual Trust Loop
 
@@ -66,6 +66,8 @@ swift run mimicry apply ~/Desktop/manual-test.mimicry --dry-run
 ```
 
 `inspect` should show package metadata, source Mac metadata, section totals, classification and applicability summaries, captured items, review-required items, excluded items, unsupported items, warnings, and the no-mutation statement.
+
+For Safari, `inspect` should show a `safari` section when bookmarks are present or a warning/source item when they are absent or unreadable. Bookmark entries should be review-required and user-specific. URL query strings and fragments should not appear in captured Safari bookmark values.
 
 `diff` should compare the snapshot to the current Mac and show matching, changed, missing, current-only, skipped, unsupported, snapshot-warning, and current-warning groups without mutating system settings.
 
@@ -84,7 +86,7 @@ swift run mimicry apply ~/Desktop/manual-test.mimicry --confirm
 - Homebrew discovery
 - App Store discovery
 - Finder configuration discovery and absent-preference handling
-- browser bookmark parsing
+- Safari bookmark parsing, missing bookmark handling, unreadable plist handling, and URL query/fragment redaction
 - Terminal configuration metadata and secret-like shell value redaction
 - iCloud status metadata and authentication-state exclusion
 - provider registry lookup and ordering
@@ -131,6 +133,7 @@ Verify that snapshots cannot accidentally contain:
 - tokens
 - browser credentials
 - cookies
+- browser sessions, history, autofill, website storage, profile encryption keys, extension auth state, and URL query/fragment secrets
 
 ## Test Boundary
 
