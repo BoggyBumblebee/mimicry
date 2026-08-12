@@ -63,7 +63,32 @@ final class MimicryCLISmokeTests: XCTestCase {
 
         XCTAssertTrue(inspectOutput.contains("Mimicry Snapshot"))
         XCTAssertTrue(inspectOutput.contains("Schema version: 1"))
-        XCTAssertTrue(inspectOutput.contains("Sections: 1"))
+        XCTAssertTrue(inspectOutput.contains("Source: reference-mac (cmb)"))
+        XCTAssertTrue(inspectOutput.contains("Sections: 2"))
+        XCTAssertTrue(inspectOutput.contains("Items: 6"))
+        XCTAssertTrue(inspectOutput.contains("Warnings: 1"))
+        XCTAssertTrue(inspectOutput.contains("Classification Summary"))
+        XCTAssertTrue(inspectOutput.contains("- safe configuration: 1"))
+        XCTAssertTrue(inspectOutput.contains("- excluded: 1"))
+        XCTAssertTrue(inspectOutput.contains("- user must review: 1"))
+        XCTAssertTrue(inspectOutput.contains("- machine specific: 1"))
+        XCTAssertTrue(inspectOutput.contains("- unsupported: 1"))
+        XCTAssertTrue(inspectOutput.contains("Applicability Summary"))
+        XCTAssertTrue(inspectOutput.contains("- universal: 3"))
+        XCTAssertTrue(inspectOutput.contains("- user specific: 3"))
+        XCTAssertTrue(inspectOutput.contains("Environment (environment)"))
+        XCTAssertTrue(inspectOutput.contains("Captured Items"))
+        XCTAssertTrue(inspectOutput.contains("architecture = arm64 [safe configuration, universal]"))
+        XCTAssertTrue(inspectOutput.contains("Review Required"))
+        XCTAssertTrue(inspectOutput.contains("username = cmb [user must review, user specific]"))
+        XCTAssertTrue(inspectOutput.contains("hostname = reference-mac [machine specific, universal]"))
+        XCTAssertTrue(inspectOutput.contains("Excluded Items"))
+        XCTAssertTrue(inspectOutput.contains("icloud.auth-state = excluded [excluded, user specific]"))
+        XCTAssertTrue(inspectOutput.contains("Unsupported Items"))
+        XCTAssertTrue(inspectOutput.contains("finder.legacy-setting = absent [unsupported, universal]"))
+        XCTAssertTrue(inspectOutput.contains("Warnings"))
+        XCTAssertTrue(inspectOutput.contains("terminal.config-redacted.zshrc:"))
+        XCTAssertTrue(inspectOutput.contains("No system settings were changed."))
         XCTAssertEqual(validateOutput, "Validation passed.")
     }
 
@@ -77,7 +102,7 @@ final class MimicryCLISmokeTests: XCTestCase {
 
         XCTAssertTrue(output.contains("Mimicry Snapshot Created"))
         XCTAssertTrue(output.contains("target.mimicry"))
-        XCTAssertTrue(output.contains("Sections: 1"))
+        XCTAssertTrue(output.contains("Sections: 2"))
         XCTAssertTrue(output.contains("No system settings were changed."))
     }
 
@@ -115,7 +140,48 @@ private extension MimicrySnapshot {
                     displayName: "Environment",
                     capturedAt: Date(timeIntervalSince1970: 1_786_492_800),
                     items: [
-                        SnapshotItem(key: "architecture", value: .string("arm64"))
+                        SnapshotItem(key: "architecture", value: .string("arm64")),
+                        SnapshotItem(
+                            key: "username",
+                            value: .string("cmb"),
+                            classification: .userMustReview,
+                            applicability: .userSpecific
+                        ),
+                        SnapshotItem(
+                            key: "hostname",
+                            value: .string("reference-mac"),
+                            classification: .machineSpecific
+                        )
+                    ]
+                ),
+                SnapshotSection(
+                    identifier: "terminal",
+                    displayName: "Terminal",
+                    capturedAt: Date(timeIntervalSince1970: 1_786_492_800),
+                    items: [
+                        SnapshotItem(
+                            key: "icloud.auth-state",
+                            value: .string("excluded"),
+                            classification: .excluded,
+                            applicability: .userSpecific
+                        ),
+                        SnapshotItem(
+                            key: "finder.legacy-setting",
+                            value: .absent,
+                            classification: .unsupported
+                        ),
+                        SnapshotItem(
+                            key: "terminal.config.zshrc",
+                            value: .object(["status": "redacted", "reason": "secret-like values"]),
+                            classification: .potentiallySensitive,
+                            applicability: .userSpecific
+                        )
+                    ],
+                    warnings: [
+                        SnapshotWarning(
+                            code: "terminal.config-redacted.zshrc",
+                            message: "Shell configuration contains secret-like values and was redacted."
+                        )
                     ]
                 )
             ]

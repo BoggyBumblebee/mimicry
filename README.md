@@ -20,14 +20,14 @@ The full build prompt is tracked in [PROMPT.md](PROMPT.md).
 
 ## Current Status
 
-Phase 0, Phase 1, and Phase 2 are done. Phase 3 now includes read-only Finder preference inventory, Terminal shell/config metadata with secret-safe redaction, and iCloud status metadata. Mimicry can produce a read-only `.mimicry` snapshot package containing environment, Homebrew, App Store, Finder, Terminal, and iCloud sections.
+Phase 0, Phase 1, and Phase 2 are done. Phase 3 is now being delivered as end-to-end vertical slices so each step can be tested manually. Slice A is implemented: Mimicry can create, validate, and richly inspect a read-only `.mimicry` snapshot package containing environment, Homebrew, App Store, Finder, Terminal, and iCloud sections.
 
 Current scaffold includes:
 
 - Swift package with `MimicryCore`, `MimicryCLISupport`, and `mimicry` CLI targets.
 - XcodeGen configuration in `project.yml`.
 - SwiftUI app shell.
-- CLI command shells, with `mimicry doctor` reporting read-only local diagnostics and `mimicry snapshot` writing the first real package sections.
+- CLI command shells, with `mimicry doctor` reporting read-only local diagnostics, `mimicry snapshot` writing the first real package sections, and `mimicry inspect` rendering a human-readable audit of captured, review-required, excluded, unsupported, and warning items.
 - Core snapshot, provider, log, command-runner, and `.mimicry` package models.
 - Capability detection, Phase 2 providers for environment, Homebrew, and App Store inventory, and Phase 3 providers for Finder, Terminal, and iCloud inventory.
 - Unit tests for snapshot JSON, package checksums, fake command execution, provider registry, capabilities, providers, snapshot building, and CLI smoke behavior.
@@ -71,6 +71,7 @@ Codex has been used to:
 - start Phase 3 with read-only Finder preference inventory
 - add Phase 3 Terminal metadata inventory with secret-like shell configuration redaction
 - add Phase 3 iCloud status metadata without capturing credentials or authentication state
+- recut Phase 3 into end-to-end manual-test slices and complete Slice A with rich snapshot inspection
 
 Future implementation work should continue to make Codex-generated changes easy to review: small commits, explicit phase boundaries, tests with each meaningful behavior change, quality and coverage gates before commits, and documentation updates whenever the architecture or supported behavior changes.
 
@@ -144,4 +145,13 @@ Run tests:
 ```bash
 swift test
 xcodebuild -project Mimicry.xcodeproj -scheme Mimicry -destination platform=macOS -derivedDataPath .build/XcodeDerivedData test CODE_SIGNING_ALLOWED=NO
+```
+
+Run the current manual trust loop:
+
+```bash
+swift run mimicry doctor
+swift run mimicry snapshot --output ~/Desktop/manual-test.mimicry
+swift run mimicry validate ~/Desktop/manual-test.mimicry
+swift run mimicry inspect ~/Desktop/manual-test.mimicry
 ```

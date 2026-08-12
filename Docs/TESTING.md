@@ -49,6 +49,19 @@ The total must stay above 80%, preferably with meaningful headroom.
 - package corruption detection
 - snapshot builder writes environment, Homebrew, and App Store sections
 
+## Manual Trust Loop
+
+The current end-to-end manual path is intentionally read-only:
+
+```bash
+swift run mimicry doctor
+swift run mimicry snapshot --output ~/Desktop/manual-test.mimicry
+swift run mimicry validate ~/Desktop/manual-test.mimicry
+swift run mimicry inspect ~/Desktop/manual-test.mimicry
+```
+
+`inspect` should show package metadata, source Mac metadata, section totals, classification and applicability summaries, captured items, review-required items, excluded items, unsupported items, warnings, and the no-mutation statement.
+
 ## Provider Tests
 
 - Homebrew discovery
@@ -69,7 +82,8 @@ The total must stay above 80%, preferably with meaningful headroom.
 - root command exposes expected subcommands
 - doctor output renders capability findings without mutating system state
 - snapshot output summarizes the created `.mimicry` package
-- inspect and validate can read a fixture `.mimicry` package
+- inspect renders a human-readable audit of captured, review-required, excluded, unsupported, and warning items
+- validate can read a fixture `.mimicry` package
 - remaining placeholder commands echo requested snapshot paths without mutating system state
 
 ## Compatibility Tests

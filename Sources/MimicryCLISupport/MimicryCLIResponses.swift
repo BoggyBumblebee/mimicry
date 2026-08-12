@@ -50,13 +50,7 @@ public enum MimicryCLIResponses {
     public static func inspect(packagePath: String) throws -> String {
         let store = MimicryPackageStore()
         let package = try store.read(from: URL(fileURLWithPath: packagePath))
-        return """
-        Mimicry Snapshot
-        ================
-        Schema version: \(package.snapshot.schemaVersion)
-        Mimicry version: \(package.snapshot.mimicryVersion)
-        Sections: \(package.snapshot.sections.count)
-        """
+        return SnapshotInspectionReport(package: package).render()
     }
 
     public static func validate(packagePath: String) throws -> String {
@@ -77,6 +71,257 @@ public enum MimicryCLIResponses {
         Snapshot: \(packagePath)
         Dry run: \(dryRun)
         """
+    }
+}
+
+private struct SnapshotInspectionReport {
+    var package: MimicryPackage
+
+    func render() -> String {
+        let snapshot = package.snapshot
+        let itemCount = snapshot.sections.reduce(0) { count, section in
+            count + section.items.count
+        }
+        let warningCount = snapshot.sections.reduce(0) { count, section in
+            count + section.warnings.count
+        }
+
+        var lines = [
+            "Mimicry Snapshot",
+            "================",
+            "Package: \(package.url.path)",
+            "Schema version: \(snapshot.schemaVersion)",
+            "Mimicry version: \(snapshot.mimicryVersion)",
+            "Created: \(format(snapshot.createdAt))",
+            "Source: \(snapshot.source.hostname) (\(snapshot.source.username))",
+            "macOS: \(snapshot.source.macOSVersion)",
+            "Hardware: \(snapshot.source.hardwareModel)",
+            "Architecture: \(snapshot.source.architecture)",
+            "Sections: \(snapshot.sections.count)",
+            "Items: \(itemCount)",
+            "Warnings: \(warningCount)",
+            "",
+            "Classification Summary",
+            "----------------------"
+        ]
+
+        lines.append(contentsOf: countLines(
+            counts: classificationCounts(in: snapshot),
+            orderedKeys: ConfigurationClassification.allCases,
+            label: { $0.displayName }
+        ))
+        lines.append("")
+        lines.append("Applicability Summary")
+        lines.append("---------------------")
+        lines.append(contentsOf: countLines(
+            counts: applicabilityCounts(in: snapshot),
+            orderedKeys: ConfigurationApplicability.allCases,
+            label: { $0.displayName }
+        ))
+        lines.append("")
+        lines.append("Sections")
+        lines.append("--------")
+
+        for section in snapshot.sections {
+            lines.append(contentsOf: sectionLines(section))
+        }
+
+        lines.append("")
+        lines.append("No system settings were changed.")
+        return lines.joined(separator: "\n")
+    }
+
+    private func sectionLines(_ section: SnapshotSection) -> [String] {
+        var lines = [
+            "\(section.displayName) (\(section.identifier))",
+            "  Captured: \(format(section.capturedAt))",
+            "  Items: \(section.items.count)",
+            "  Warnings: \(section.warnings.count)"
+        ]
+
+        let captured = section.items.filter { $0.inspectionCategory == .captured }
+        let review = section.items.filter { $0.inspectionCategory == .reviewRequired }
+        let excluded = section.items.filter { $0.inspectionCategory == .excluded }
+        let unsupported = section.items.filter { $0.inspectionCategory == .unsupported }
+
+        lines.append(contentsOf: itemGroupLines(title: "Captured Items", items: captured))
+        lines.append(contentsOf: itemGroupLines(title: "Review Required", items: review))
+        lines.append(contentsOf: itemGroupLines(title: "Excluded Items", items: excluded))
+        lines.append(contentsOf: itemGroupLines(title: "Unsupported Items", items: unsupported))
+
+        if !section.warnings.isEmpty {
+            lines.append("  Warnings")
+            for warning in section.warnings {
+                lines.append("    - \(warning.code): \(warning.message)")
+            }
+        }
+
+        return lines
+    }
+
+    private func itemGroupLines(title: String, items: [SnapshotItem]) -> [String] {
+        guard !items.isEmpty else {
+            return []
+        }
+
+        return ["  \(title)"] + items.map { item in
+            "    - \(item.key) = \(item.value.inspectionDescription) [\(item.classification.displayName), \(item.applicability.displayName)]"
+        }
+    }
+
+    private func classificationCounts(in snapshot: MimicrySnapshot) -> [ConfigurationClassification: Int] {
+        var counts: [ConfigurationClassification: Int] = [:]
+        for item in snapshot.sections.flatMap(\.items) {
+            counts[item.classification, default: 0] += 1
+        }
+        return counts
+    }
+
+    private func applicabilityCounts(in snapshot: MimicrySnapshot) -> [ConfigurationApplicability: Int] {
+        var counts: [ConfigurationApplicability: Int] = [:]
+        for item in snapshot.sections.flatMap(\.items) {
+            counts[item.applicability, default: 0] += 1
+        }
+        return counts
+    }
+
+    private func countLines<Key>(
+        counts: [Key: Int],
+        orderedKeys: [Key],
+        label: (Key) -> String
+    ) -> [String] where Key: Hashable {
+        let lines = orderedKeys.compactMap { key -> String? in
+            guard let count = counts[key], count > 0 else {
+                return nil
+            }
+            return "- \(label(key)): \(count)"
+        }
+
+        return lines.isEmpty ? ["- None"] : lines
+    }
+
+    private func format(_ date: Date) -> String {
+        ISO8601DateFormatter().string(from: date)
+    }
+}
+
+private enum InspectionCategory {
+    case captured
+    case reviewRequired
+    case excluded
+    case unsupported
+}
+
+private extension SnapshotItem {
+    var inspectionCategory: InspectionCategory {
+        switch classification {
+        case .excluded:
+            return .excluded
+        case .unsupported:
+            return .unsupported
+        case .potentiallySensitive, .userMustReview, .machineSpecific, .hardwareSpecific, .managed:
+            return .reviewRequired
+        case .safeConfiguration:
+            return .captured
+        }
+    }
+}
+
+private extension SnapshotValue {
+    var inspectionDescription: String {
+        switch self {
+        case let .string(value):
+            return value
+        case let .bool(value):
+            return value ? "true" : "false"
+        case let .int(value):
+            return String(value)
+        case let .double(value):
+            return String(value)
+        case let .stringArray(values):
+            return values.isEmpty ? "[]" : values.joined(separator: ", ")
+        case let .object(values):
+            return values
+                .sorted { $0.key < $1.key }
+                .map { "\($0.key)=\($0.value)" }
+                .joined(separator: ", ")
+        case .absent:
+            return "absent"
+        }
+    }
+}
+
+private extension ConfigurationClassification {
+    static let allCases: [ConfigurationClassification] = [
+        .safeConfiguration,
+        .potentiallySensitive,
+        .excluded,
+        .userMustReview,
+        .machineSpecific,
+        .hardwareSpecific,
+        .managed,
+        .unsupported
+    ]
+
+    var displayName: String {
+        switch self {
+        case .safeConfiguration:
+            return "safe configuration"
+        case .potentiallySensitive:
+            return "potentially sensitive"
+        case .excluded:
+            return "excluded"
+        case .userMustReview:
+            return "user must review"
+        case .machineSpecific:
+            return "machine specific"
+        case .hardwareSpecific:
+            return "hardware specific"
+        case .managed:
+            return "managed"
+        case .unsupported:
+            return "unsupported"
+        }
+    }
+}
+
+private extension ConfigurationApplicability {
+    static let allCases: [ConfigurationApplicability] = [
+        .universal,
+        .appleSiliconOnly,
+        .intelOnly,
+        .laptopOnly,
+        .desktopOnly,
+        .externalDisplayDependent,
+        .externalInputDeviceDependent,
+        .userSpecific,
+        .machineSpecific,
+        .managedDeviceOnly
+    ]
+
+    var displayName: String {
+        switch self {
+        case .universal:
+            return "universal"
+        case .appleSiliconOnly:
+            return "Apple Silicon only"
+        case .intelOnly:
+            return "Intel only"
+        case .laptopOnly:
+            return "laptop only"
+        case .desktopOnly:
+            return "desktop only"
+        case .externalDisplayDependent:
+            return "external display dependent"
+        case .externalInputDeviceDependent:
+            return "external input device dependent"
+        case .userSpecific:
+            return "user specific"
+        case .machineSpecific:
+            return "machine specific"
+        case .managedDeviceOnly:
+            return "managed device only"
+        }
     }
 }
 

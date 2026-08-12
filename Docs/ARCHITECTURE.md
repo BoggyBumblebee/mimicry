@@ -99,6 +99,10 @@ The Terminal slice adds shell metadata and reviewed shell configuration file met
 
 The iCloud slice adds read-only status metadata from local capability state and the presence of the iCloud Drive container. It records whether user action is required and explicitly marks authentication state as excluded; it does not inspect account databases, tokens, sessions, synced documents, or credentials.
 
+## Phase 3 End-To-End Slices
+
+Phase 3 now prioritizes manually testable vertical slices over adding provider breadth. Slice A makes `inspect` the trust surface for snapshots: it reads the same package bundle that `snapshot` writes, summarizes classifications and applicability, groups captured, review-required, excluded, and unsupported items per section, surfaces warnings, and states that no system settings were changed.
+
 ## Existing Project Context
 
 The implementation should learn from nearby BoggyBumblebee projects:

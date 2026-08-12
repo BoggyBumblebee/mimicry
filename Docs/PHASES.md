@@ -71,11 +71,11 @@ Exit criteria:
 - Homebrew and App Store providers have unit tests with mocked commands.
 - Missing Homebrew or `mas` is reported as a warning, not a crash.
 
-## Phase 3: Finder, Terminal, iCloud
+## Phase 3: End-To-End Read-Only Trust Loop
 
-Status: In progress. Read-only Finder inventory, Terminal metadata inventory, shell secret scanning, and iCloud status metadata are implemented; inspection detail is still pending.
+Status: In progress. Read-only Finder inventory, Terminal metadata inventory, shell secret scanning, iCloud status metadata, and rich snapshot inspection are implemented. Diff, dry-run apply, and the first safe apply slice are next.
 
-Goal: cover the first user-visible macOS configuration areas.
+Goal: make the existing providers manually testable as a real workflow before adding more provider breadth.
 
 Deliverables:
 
@@ -84,12 +84,24 @@ Deliverables:
 - Secret scanner for shell/profile files.
 - iCloud provider that detects state and reports required user action without copying authentication.
 - Snapshot inspection for captured, excluded, unsupported, and user-action-required items.
+- Snapshot diff for the current Mac.
+- Dry-run apply planning for existing providers.
+- First narrow safe apply path with backups and explicit non-mutating tests.
+
+Vertical slices:
+
+- Slice A, Trust The Snapshot: `snapshot`, `validate`, and rich `inspect` make captured, excluded, redacted, unsupported, and review-required items visible.
+- Slice B, Explain The Difference: `diff` compares an existing snapshot with the current Mac and reports matching, changed, missing, skipped, and unsupported items.
+- Slice C, Dry-Run Apply: `apply --dry-run` produces a real action plan without mutating this Mac.
+- Slice D, First Safe Apply: enable the smallest explicitly classified mutation path, with backup and clear limitations.
 
 Exit criteria:
 
 - Terminal provider refuses or redacts likely secrets by default.
 - Finder provider documents every `defaults` or public mechanism it uses.
 - iCloud provider never stores credentials or auth state.
+- A user can run `doctor`, `snapshot`, `inspect`, `diff`, and `apply --dry-run` and understand the result without opening JSON.
+- The first real apply behavior is narrow, backed up where practical, and covered by tests.
 
 ## Phase 4: Browser Providers
 
@@ -109,9 +121,9 @@ Exit criteria:
 - Bookmark imports are idempotent in dry-run planning.
 - Multiple profiles are visible and reviewable.
 
-## Phase 5: Diff, Dry Run, Apply, Backups, Rollback
+## Phase 5: Broader Apply, Backups, Rollback
 
-Goal: make Mimicry a reconciliation tool, not just an inventory tool.
+Goal: broaden the reconciliation engine after the first end-to-end loop exists.
 
 Deliverables:
 
