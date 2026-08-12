@@ -111,6 +111,9 @@ final class MimicryAppContentTests: XCTestCase {
                 comparePackage: { url in
                     Self.sampleCompareSummary(url: url)
                 },
+                planApplyPackage: { url in
+                    Self.sampleApplyPlanSummary(url: url)
+                },
                 detectCapabilities: { Self.sampleCapabilities }
             ),
             historyStore: PackageHistoryStore(
@@ -141,6 +144,7 @@ final class MimicryAppContentTests: XCTestCase {
             createSnapshot: { _ in throw AppTestError.snapshotFailed },
             openPackage: { _ in AppPackageSummary(package: Self.samplePackage()) },
             comparePackage: { _ in Self.sampleCompareSummary() },
+            planApplyPackage: { _ in Self.sampleApplyPlanSummary() },
             detectCapabilities: { Self.sampleCapabilities }
         ))
 
@@ -165,6 +169,7 @@ final class MimicryAppContentTests: XCTestCase {
                 },
                 openPackage: { _ in AppPackageSummary(package: Self.samplePackage()) },
                 comparePackage: { url in Self.sampleCompareSummary(url: url) },
+                planApplyPackage: { url in Self.sampleApplyPlanSummary(url: url) },
                 detectCapabilities: { Self.sampleCapabilities }
             ),
             historyStore: PackageHistoryStore(
@@ -199,6 +204,7 @@ final class MimicryAppContentTests: XCTestCase {
             },
             openPackage: { _ in throw AppTestError.packageFailed },
             comparePackage: { _ in Self.sampleCompareSummary() },
+            planApplyPackage: { _ in Self.sampleApplyPlanSummary() },
             detectCapabilities: { Self.sampleCapabilities }
         ))
 
@@ -231,6 +237,7 @@ final class MimicryAppContentTests: XCTestCase {
                 },
                 openPackage: { url in AppPackageSummary(package: Self.samplePackage(url: url)) },
                 comparePackage: { url in Self.sampleCompareSummary(url: url) },
+                planApplyPackage: { url in Self.sampleApplyPlanSummary(url: url) },
                 detectCapabilities: { Self.sampleCapabilities }
             ),
             historyStore: PackageHistoryStore(
@@ -267,6 +274,7 @@ final class MimicryAppContentTests: XCTestCase {
             },
             openPackage: { url in AppPackageSummary(package: Self.samplePackage(url: url)) },
             comparePackage: { _ in throw AppTestError.compareFailed },
+            planApplyPackage: { _ in Self.sampleApplyPlanSummary() },
             detectCapabilities: { Self.sampleCapabilities }
         ))
 
@@ -274,6 +282,81 @@ final class MimicryAppContentTests: XCTestCase {
         await model.compareCurrentPackage()
 
         XCTAssertEqual(model.compareState, .failed("Compare test failure"))
+    }
+
+    func testPlanApplyRequiresOpenPackage() async {
+        let model = Self.makeModel()
+
+        await model.planApplyForCurrentPackage()
+
+        XCTAssertEqual(model.applyPlanState, .failed("Open a package before planning apply."))
+    }
+
+    func testPlanApplySummarizesDryRunActions() async {
+        let model = Self.makeModel(
+            runtime: AppRuntime(
+                createSnapshot: { url in
+                    AppSnapshotSummary(
+                        url: url,
+                        sectionCount: 0,
+                        itemCount: 0,
+                        warningCount: 0,
+                        createdAt: Date(timeIntervalSince1970: 0),
+                        source: "unused"
+                    )
+                },
+                openPackage: { url in AppPackageSummary(package: Self.samplePackage(url: url)) },
+                comparePackage: { url in Self.sampleCompareSummary(url: url) },
+                planApplyPackage: { url in Self.sampleApplyPlanSummary(url: url) },
+                detectCapabilities: { Self.sampleCapabilities }
+            ),
+            historyStore: PackageHistoryStore(
+                load: { [] },
+                record: { [RecentPackage(url: $0)] }
+            )
+        )
+
+        await model.openPackage(at: URL(fileURLWithPath: "/tmp/opened.mimicry"))
+        await model.planApplyForCurrentPackage()
+
+        guard case let .succeeded(summary) = model.applyPlanState else {
+            return XCTFail("Expected dry-run apply plan to succeed.")
+        }
+
+        XCTAssertEqual(summary.packageURL, URL(fileURLWithPath: "/tmp/opened.mimicry"))
+        XCTAssertEqual(summary.referenceSource, "source-mac (cmb)")
+        XCTAssertEqual(summary.currentSource, "current-mac (cmb)")
+        XCTAssertEqual(summary.actionCount, 4)
+        XCTAssertEqual(summary.installCount, 0)
+        XCTAssertEqual(summary.configureCount, 0)
+        XCTAssertEqual(summary.skipCount, 2)
+        XCTAssertEqual(summary.blockedCount, 1)
+        XCTAssertEqual(summary.userActionCount, 1)
+        XCTAssertEqual(summary.groups.map(\.title), ["SKIP", "BLOCKED", "REQUIRES USER ACTION"])
+    }
+
+    func testPlanApplyReportsFailure() async {
+        let model = Self.makeModel(runtime: AppRuntime(
+            createSnapshot: { url in
+                AppSnapshotSummary(
+                    url: url,
+                    sectionCount: 0,
+                    itemCount: 0,
+                    warningCount: 0,
+                    createdAt: Date(timeIntervalSince1970: 0),
+                    source: "unused"
+                )
+            },
+            openPackage: { url in AppPackageSummary(package: Self.samplePackage(url: url)) },
+            comparePackage: { url in Self.sampleCompareSummary(url: url) },
+            planApplyPackage: { _ in throw AppTestError.applyFailed },
+            detectCapabilities: { Self.sampleCapabilities }
+        ))
+
+        await model.openPackage(at: URL(fileURLWithPath: "/tmp/opened.mimicry"))
+        await model.planApplyForCurrentPackage()
+
+        XCTAssertEqual(model.applyPlanState, .failed("Apply test failure"))
     }
 
     func testDiagnosticsRefreshSummarizesCapabilities() async {
@@ -290,6 +373,7 @@ final class MimicryAppContentTests: XCTestCase {
             },
             openPackage: { _ in AppPackageSummary(package: Self.samplePackage()) },
             comparePackage: { _ in Self.sampleCompareSummary() },
+            planApplyPackage: { _ in Self.sampleApplyPlanSummary() },
             detectCapabilities: { Self.sampleCapabilities }
         ))
 
@@ -326,6 +410,7 @@ final class MimicryAppContentTests: XCTestCase {
             },
             openPackage: { _ in AppPackageSummary(package: samplePackage()) },
             comparePackage: { url in sampleCompareSummary(url: url) },
+            planApplyPackage: { url in sampleApplyPlanSummary(url: url) },
             detectCapabilities: { sampleCapabilities }
         ),
         historyStore: PackageHistoryStore = PackageHistoryStore(load: { [] }, record: { [RecentPackage(url: $0)] })
@@ -416,6 +501,18 @@ final class MimicryAppContentTests: XCTestCase {
         )
     }
 
+    nonisolated private static func sampleApplyPlanSummary(
+        url: URL = URL(fileURLWithPath: "/tmp/opened.mimicry")
+    ) -> AppApplyPlanSummary {
+        AppApplyPlanSummary(
+            packageURL: url,
+            plan: SnapshotApplyPlanner().plan(
+                reference: samplePackage(url: url).snapshot,
+                current: sampleCurrentSnapshot()
+            )
+        )
+    }
+
     nonisolated private static func sampleCurrentSnapshot() -> MimicrySnapshot {
         MimicrySnapshot(
             mimicryVersion: "0.1.0",
@@ -453,6 +550,7 @@ private enum AppTestError: LocalizedError {
     case snapshotFailed
     case packageFailed
     case compareFailed
+    case applyFailed
 
     var errorDescription: String? {
         switch self {
@@ -462,6 +560,8 @@ private enum AppTestError: LocalizedError {
             "Package test failure"
         case .compareFailed:
             "Compare test failure"
+        case .applyFailed:
+            "Apply test failure"
         }
     }
 }

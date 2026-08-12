@@ -7,6 +7,7 @@ final class AppModel: ObservableObject {
     @Published private(set) var snapshotState: AppCommandState<AppSnapshotSummary> = .idle
     @Published private(set) var packageState: AppCommandState<AppPackageSummary> = .idle
     @Published private(set) var compareState: AppCommandState<AppCompareSummary> = .idle
+    @Published private(set) var applyPlanState: AppCommandState<AppApplyPlanSummary> = .idle
     @Published private(set) var diagnosticsState: AppCommandState<AppDiagnosticsSummary> = .idle
     @Published private(set) var recentPackages: [RecentPackage]
 
@@ -43,6 +44,7 @@ final class AppModel: ObservableObject {
     func openPackage(at packageURL: URL) async {
         packageState = .running
         compareState = .idle
+        applyPlanState = .idle
 
         do {
             let summary = try await runtime.openPackage(packageURL.standardizedFileURL)
@@ -50,6 +52,21 @@ final class AppModel: ObservableObject {
             recentPackages = historyStore.record(summary.url)
         } catch {
             packageState = .failed(error.readableMessage)
+        }
+    }
+
+    func planApplyForCurrentPackage() async {
+        guard case let .succeeded(package) = packageState else {
+            applyPlanState = .failed("Open a package before planning apply.")
+            return
+        }
+
+        applyPlanState = .running
+
+        do {
+            applyPlanState = .succeeded(try await runtime.planApplyPackage(package.url))
+        } catch {
+            applyPlanState = .failed(error.readableMessage)
         }
     }
 
@@ -98,6 +115,7 @@ struct AppRuntime: Sendable {
     var createSnapshot: @Sendable (URL) async throws -> AppSnapshotSummary
     var openPackage: @Sendable (URL) async throws -> AppPackageSummary
     var comparePackage: @Sendable (URL) async throws -> AppCompareSummary
+    var planApplyPackage: @Sendable (URL) async throws -> AppApplyPlanSummary
     var detectCapabilities: @Sendable () async throws -> MacCapabilities
 
     static let live = AppRuntime(
@@ -114,6 +132,12 @@ struct AppRuntime: Sendable {
             let currentSnapshot = try await MimicrySnapshotBuilder().buildSnapshot().snapshot
             let report = SnapshotDiffEngine().diff(reference: package.snapshot, current: currentSnapshot)
             return AppCompareSummary(packageURL: package.url, report: report)
+        },
+        planApplyPackage: { packageURL in
+            let package = try MimicryPackageStore().read(from: packageURL)
+            let currentSnapshot = try await MimicrySnapshotBuilder().buildSnapshot().snapshot
+            let plan = SnapshotApplyPlanner().plan(reference: package.snapshot, current: currentSnapshot)
+            return AppApplyPlanSummary(packageURL: package.url, plan: plan)
         },
         detectCapabilities: {
             await MacCapabilitiesDetector().detect()
@@ -278,6 +302,66 @@ struct CompareSectionSummary: Equatable, Sendable, Identifiable {
     }
 }
 
+struct AppApplyPlanSummary: Equatable, Sendable {
+    var packageURL: URL
+    var referenceSource: String
+    var currentSource: String
+    var actionCount: Int
+    var installCount: Int
+    var configureCount: Int
+    var skipCount: Int
+    var blockedCount: Int
+    var userActionCount: Int
+    var groups: [ApplyActionGroupSummary]
+
+    init(packageURL: URL, plan: SnapshotApplyPlan) {
+        self.packageURL = packageURL
+        referenceSource = "\(plan.diff.referenceSource.hostname) (\(plan.diff.referenceSource.username))"
+        currentSource = "\(plan.diff.currentSource.hostname) (\(plan.diff.currentSource.username))"
+        actionCount = plan.actions.count
+        installCount = plan.count(.install)
+        configureCount = plan.count(.configure)
+        skipCount = plan.count(.skip)
+        blockedCount = plan.count(.blocked)
+        userActionCount = plan.count(.requiresUserAction)
+        groups = PlannedActionKind.displayOrder.compactMap { kind in
+            let actions = plan.actions.filter { $0.kind == kind }
+            guard !actions.isEmpty else {
+                return nil
+            }
+
+            return ApplyActionGroupSummary(kind: kind, actions: actions)
+        }
+    }
+}
+
+struct ApplyActionGroupSummary: Equatable, Sendable, Identifiable {
+    var id: String { title }
+    var title: String
+    var actionCount: Int
+    var actions: [AppPlannedActionSummary]
+
+    init(kind: PlannedActionKind, actions: [PlannedAction]) {
+        title = kind.groupTitle
+        actionCount = actions.count
+        self.actions = actions.map(AppPlannedActionSummary.init(action:))
+    }
+}
+
+struct AppPlannedActionSummary: Equatable, Sendable, Identifiable {
+    var id: UUID
+    var provider: String
+    var detail: String
+    var requiresElevation: Bool
+
+    init(action: PlannedAction) {
+        id = action.id
+        provider = action.providerIdentifier
+        detail = action.summary
+        requiresElevation = action.requiresElevation
+    }
+}
+
 struct AppDiagnosticsSummary: Equatable, Sendable {
     var host: String
     var macOSVersion: String
@@ -304,6 +388,31 @@ struct AppDiagnosticsSummary: Equatable, Sendable {
 private extension SnapshotSectionDiff {
     func count(_ status: SnapshotDiffStatus) -> Int {
         items.filter { $0.status == status }.count
+    }
+}
+
+private extension PlannedActionKind {
+    static let displayOrder: [PlannedActionKind] = [
+        .install,
+        .configure,
+        .skip,
+        .blocked,
+        .requiresUserAction
+    ]
+
+    var groupTitle: String {
+        switch self {
+        case .install:
+            "INSTALL"
+        case .configure:
+            "CONFIGURE"
+        case .skip:
+            "SKIP"
+        case .blocked:
+            "BLOCKED"
+        case .requiresUserAction:
+            "REQUIRES USER ACTION"
+        }
     }
 }
 

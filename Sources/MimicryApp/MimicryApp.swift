@@ -81,7 +81,7 @@ struct DetailView: View {
                 case .snapshot:
                     SnapshotView(model: model)
                 case .apply:
-                    ApplyView()
+                    ApplyView(model: model)
                 case .compare:
                     CompareView(model: model)
                 case .history:
@@ -220,26 +220,42 @@ private struct SnapshotView: View {
 }
 
 private struct ApplyView: View {
+    @ObservedObject var model: AppModel
+
     var body: some View {
         TwoColumnPanels {
-            ContentPanel(title: "Confirmed Apply", systemImage: "checkmark.shield") {
-                ActionList(items: [
-                    ActionItem(title: "Finder booleans", status: "Enabled", systemImage: "checkmark.circle"),
-                    ActionItem(title: "Finder strings", status: "Enabled", systemImage: "checkmark.circle"),
-                    ActionItem(title: "Backup before write", status: "Required", systemImage: "externaldrive"),
-                    ActionItem(title: "Deletes", status: "Blocked", systemImage: "nosign")
-                ])
+            ContentPanel(title: "Package", systemImage: "doc.text.magnifyingglass") {
+                VStack(alignment: .leading, spacing: 14) {
+                    Button {
+                        Task {
+                            await model.planApplyForCurrentPackage()
+                        }
+                    } label: {
+                        Label("Dry Run", systemImage: "checklist")
+                    }
+                    .buttonStyle(.borderedProminent)
+                    .disabled(!canPlanApply)
+
+                    PackageInspectView(state: model.packageState)
+                }
             }
 
-            ContentPanel(title: "Review Required", systemImage: "person.crop.circle.badge.exclamationmark") {
-                ActionList(items: [
-                    ActionItem(title: "Homebrew installs", status: "Dry-run only", systemImage: "shippingbox"),
-                    ActionItem(title: "App Store apps", status: "Dry-run only", systemImage: "bag"),
-                    ActionItem(title: "Terminal files", status: "Review only", systemImage: "terminal"),
-                    ActionItem(title: "Browser imports", status: "HTML handoff", systemImage: "safari")
-                ])
+            ContentPanel(title: "Dry Run Plan", systemImage: "checklist") {
+                ApplyPlanResultView(state: model.applyPlanState)
             }
         }
+    }
+
+    private var canPlanApply: Bool {
+        guard !model.applyPlanState.isRunning else {
+            return false
+        }
+
+        if case .succeeded = model.packageState {
+            return true
+        }
+
+        return false
     }
 }
 
@@ -728,6 +744,119 @@ private struct CompareSectionRow: View {
             "\(section.skippedCount) skipped",
             "\(section.blockedCount) blocked"
         ].joined(separator: " / ")
+    }
+}
+
+private struct ApplyPlanResultView: View {
+    var state: AppCommandState<AppApplyPlanSummary>
+
+    var body: some View {
+        switch state {
+        case .idle:
+            VStack(alignment: .leading, spacing: 14) {
+                EmptyStateRow(title: "No dry run yet", detail: "Open a package and preview the apply plan.", systemImage: "checklist")
+                ApplyGroupGrid(summary: nil)
+            }
+        case .running:
+            ProgressRow(title: "Planning apply", detail: "Comparing the package with this Mac without changing settings.")
+        case let .succeeded(summary):
+            VStack(alignment: .leading, spacing: 14) {
+                KeyValueList(rows: [
+                    KeyValueRow(label: "Package", value: summary.packageURL.lastPathComponent),
+                    KeyValueRow(label: "Reference", value: summary.referenceSource),
+                    KeyValueRow(label: "Current", value: summary.currentSource),
+                    KeyValueRow(label: "Actions", value: "\(summary.actionCount)")
+                ])
+
+                ApplyGroupGrid(summary: summary)
+
+                if summary.groups.isEmpty {
+                    EmptyStateRow(title: "No actions required", detail: "The dry-run planner found no changes to apply.", systemImage: "checkmark.circle")
+                } else {
+                    Divider()
+                    VStack(alignment: .leading, spacing: 12) {
+                        ForEach(summary.groups) { group in
+                            ApplyActionGroupView(group: group)
+                        }
+                    }
+                }
+            }
+        case let .failed(message):
+            FailureRow(title: "Dry run failed", detail: message)
+        }
+    }
+}
+
+private struct ApplyGroupGrid: View {
+    var summary: AppApplyPlanSummary?
+
+    var body: some View {
+        LazyVGrid(columns: [GridItem(.adaptive(minimum: 130), spacing: 10)], spacing: 10) {
+            CompactStatusTile(title: "Install", value: value(\.installCount), systemImage: "arrow.down.circle")
+            CompactStatusTile(title: "Configure", value: value(\.configureCount), systemImage: "switch.2")
+            CompactStatusTile(title: "Skip", value: value(\.skipCount), systemImage: "forward.end.circle")
+            CompactStatusTile(title: "Blocked", value: value(\.blockedCount), systemImage: "xmark.octagon")
+            CompactStatusTile(title: "User Action", value: value(\.userActionCount), systemImage: "person.crop.circle.badge.exclamationmark")
+        }
+    }
+
+    private func value(_ keyPath: KeyPath<AppApplyPlanSummary, Int>) -> String {
+        guard let summary else {
+            return "-"
+        }
+
+        return "\(summary[keyPath: keyPath])"
+    }
+}
+
+private struct ApplyActionGroupView: View {
+    var group: ApplyActionGroupSummary
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: 8) {
+            HStack {
+                Text(group.title)
+                    .font(.caption.weight(.semibold))
+                    .foregroundStyle(.secondary)
+                Spacer()
+                Text("\(group.actionCount)")
+                    .font(.caption.monospacedDigit())
+                    .foregroundStyle(.secondary)
+            }
+
+            VStack(alignment: .leading, spacing: 8) {
+                ForEach(group.actions.prefix(4)) { action in
+                    ApplyActionRow(action: action)
+                }
+
+                if group.actions.count > 4 {
+                    Text("\(group.actions.count - 4) more")
+                        .font(.caption)
+                        .foregroundStyle(.secondary)
+                }
+            }
+        }
+    }
+}
+
+private struct ApplyActionRow: View {
+    var action: AppPlannedActionSummary
+
+    var body: some View {
+        HStack(alignment: .top, spacing: 10) {
+            Image(systemName: action.requiresElevation ? "lock.shield" : "checklist")
+                .frame(width: 22)
+                .foregroundStyle(.secondary)
+            VStack(alignment: .leading, spacing: 2) {
+                Text(action.provider)
+                    .font(.subheadline.weight(.semibold))
+                Text(action.detail)
+                    .font(.caption)
+                    .foregroundStyle(.secondary)
+                    .fixedSize(horizontal: false, vertical: true)
+            }
+            Spacer()
+        }
     }
 }
 
