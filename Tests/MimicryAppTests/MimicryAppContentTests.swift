@@ -108,6 +108,9 @@ final class MimicryAppContentTests: XCTestCase {
                 openPackage: { url in
                     AppPackageSummary(package: Self.samplePackage(url: url))
                 },
+                comparePackage: { url in
+                    Self.sampleCompareSummary(url: url)
+                },
                 detectCapabilities: { Self.sampleCapabilities }
             ),
             historyStore: PackageHistoryStore(
@@ -137,6 +140,7 @@ final class MimicryAppContentTests: XCTestCase {
         let model = Self.makeModel(runtime: AppRuntime(
             createSnapshot: { _ in throw AppTestError.snapshotFailed },
             openPackage: { _ in AppPackageSummary(package: Self.samplePackage()) },
+            comparePackage: { _ in Self.sampleCompareSummary() },
             detectCapabilities: { Self.sampleCapabilities }
         ))
 
@@ -160,6 +164,7 @@ final class MimicryAppContentTests: XCTestCase {
                     )
                 },
                 openPackage: { _ in AppPackageSummary(package: Self.samplePackage()) },
+                comparePackage: { url in Self.sampleCompareSummary(url: url) },
                 detectCapabilities: { Self.sampleCapabilities }
             ),
             historyStore: PackageHistoryStore(
@@ -193,6 +198,7 @@ final class MimicryAppContentTests: XCTestCase {
                 )
             },
             openPackage: { _ in throw AppTestError.packageFailed },
+            comparePackage: { _ in Self.sampleCompareSummary() },
             detectCapabilities: { Self.sampleCapabilities }
         ))
 
@@ -200,6 +206,74 @@ final class MimicryAppContentTests: XCTestCase {
 
         XCTAssertEqual(model.packageState, .failed("Package test failure"))
         XCTAssertTrue(model.recentPackages.isEmpty)
+    }
+
+    func testCompareCurrentPackageRequiresOpenPackage() async {
+        let model = Self.makeModel()
+
+        await model.compareCurrentPackage()
+
+        XCTAssertEqual(model.compareState, .failed("Open a package before comparing."))
+    }
+
+    func testCompareCurrentPackageSummarizesDiff() async {
+        let model = Self.makeModel(
+            runtime: AppRuntime(
+                createSnapshot: { url in
+                    AppSnapshotSummary(
+                        url: url,
+                        sectionCount: 0,
+                        itemCount: 0,
+                        warningCount: 0,
+                        createdAt: Date(timeIntervalSince1970: 0),
+                        source: "unused"
+                    )
+                },
+                openPackage: { url in AppPackageSummary(package: Self.samplePackage(url: url)) },
+                comparePackage: { url in Self.sampleCompareSummary(url: url) },
+                detectCapabilities: { Self.sampleCapabilities }
+            ),
+            historyStore: PackageHistoryStore(
+                load: { [] },
+                record: { [RecentPackage(url: $0)] }
+            )
+        )
+
+        await model.openPackage(at: URL(fileURLWithPath: "/tmp/opened.mimicry"))
+        await model.compareCurrentPackage()
+
+        let expected = Self.sampleCompareSummary()
+        XCTAssertEqual(model.compareState, .succeeded(expected))
+        XCTAssertEqual(expected.matchingCount, 2)
+        XCTAssertEqual(expected.changedCount, 1)
+        XCTAssertEqual(expected.missingCount, 0)
+        XCTAssertEqual(expected.currentOnlyCount, 1)
+        XCTAssertEqual(expected.skippedCount, 1)
+        XCTAssertEqual(expected.blockedCount, 1)
+        XCTAssertEqual(expected.sections.map(\.name), ["Browser", "Environment"])
+    }
+
+    func testCompareCurrentPackageReportsFailure() async {
+        let model = Self.makeModel(runtime: AppRuntime(
+            createSnapshot: { url in
+                AppSnapshotSummary(
+                    url: url,
+                    sectionCount: 0,
+                    itemCount: 0,
+                    warningCount: 0,
+                    createdAt: Date(timeIntervalSince1970: 0),
+                    source: "unused"
+                )
+            },
+            openPackage: { url in AppPackageSummary(package: Self.samplePackage(url: url)) },
+            comparePackage: { _ in throw AppTestError.compareFailed },
+            detectCapabilities: { Self.sampleCapabilities }
+        ))
+
+        await model.openPackage(at: URL(fileURLWithPath: "/tmp/opened.mimicry"))
+        await model.compareCurrentPackage()
+
+        XCTAssertEqual(model.compareState, .failed("Compare test failure"))
     }
 
     func testDiagnosticsRefreshSummarizesCapabilities() async {
@@ -215,6 +289,7 @@ final class MimicryAppContentTests: XCTestCase {
                 )
             },
             openPackage: { _ in AppPackageSummary(package: Self.samplePackage()) },
+            comparePackage: { _ in Self.sampleCompareSummary() },
             detectCapabilities: { Self.sampleCapabilities }
         ))
 
@@ -250,6 +325,7 @@ final class MimicryAppContentTests: XCTestCase {
                 )
             },
             openPackage: { _ in AppPackageSummary(package: samplePackage()) },
+            comparePackage: { url in sampleCompareSummary(url: url) },
             detectCapabilities: { sampleCapabilities }
         ),
         historyStore: PackageHistoryStore = PackageHistoryStore(load: { [] }, record: { [RecentPackage(url: $0)] })
@@ -327,11 +403,56 @@ final class MimicryAppContentTests: XCTestCase {
             )
         )
     }
+
+    nonisolated private static func sampleCompareSummary(
+        url: URL = URL(fileURLWithPath: "/tmp/opened.mimicry")
+    ) -> AppCompareSummary {
+        AppCompareSummary(
+            packageURL: url,
+            report: SnapshotDiffEngine().diff(
+                reference: samplePackage(url: url).snapshot,
+                current: sampleCurrentSnapshot()
+            )
+        )
+    }
+
+    nonisolated private static func sampleCurrentSnapshot() -> MimicrySnapshot {
+        MimicrySnapshot(
+            mimicryVersion: "0.1.0",
+            source: SnapshotSource(
+                macOSVersion: "15.5",
+                architecture: "arm64",
+                hardwareModel: "Mac16,1",
+                hostname: "current-mac",
+                username: "cmb"
+            ),
+            sections: [
+                SnapshotSection(
+                    identifier: "environment",
+                    displayName: "Environment",
+                    items: [
+                        SnapshotItem(key: "safe", value: .string("ok")),
+                        SnapshotItem(key: "review", value: .string("changed"), classification: .userMustReview),
+                        SnapshotItem(key: "current-only", value: .string("local"))
+                    ],
+                    warnings: [SnapshotWarning(code: "environment.current-warning", message: "Current warning")]
+                ),
+                SnapshotSection(
+                    identifier: "browser",
+                    displayName: "Browser",
+                    items: [
+                        SnapshotItem(key: "managed", value: .string("managed"), classification: .managed)
+                    ]
+                )
+            ]
+        )
+    }
 }
 
 private enum AppTestError: LocalizedError {
     case snapshotFailed
     case packageFailed
+    case compareFailed
 
     var errorDescription: String? {
         switch self {
@@ -339,6 +460,8 @@ private enum AppTestError: LocalizedError {
             "Snapshot test failure"
         case .packageFailed:
             "Package test failure"
+        case .compareFailed:
+            "Compare test failure"
         }
     }
 }

@@ -6,6 +6,7 @@ import MimicryCore
 final class AppModel: ObservableObject {
     @Published private(set) var snapshotState: AppCommandState<AppSnapshotSummary> = .idle
     @Published private(set) var packageState: AppCommandState<AppPackageSummary> = .idle
+    @Published private(set) var compareState: AppCommandState<AppCompareSummary> = .idle
     @Published private(set) var diagnosticsState: AppCommandState<AppDiagnosticsSummary> = .idle
     @Published private(set) var recentPackages: [RecentPackage]
 
@@ -41,6 +42,7 @@ final class AppModel: ObservableObject {
 
     func openPackage(at packageURL: URL) async {
         packageState = .running
+        compareState = .idle
 
         do {
             let summary = try await runtime.openPackage(packageURL.standardizedFileURL)
@@ -48,6 +50,21 @@ final class AppModel: ObservableObject {
             recentPackages = historyStore.record(summary.url)
         } catch {
             packageState = .failed(error.readableMessage)
+        }
+    }
+
+    func compareCurrentPackage() async {
+        guard case let .succeeded(package) = packageState else {
+            compareState = .failed("Open a package before comparing.")
+            return
+        }
+
+        compareState = .running
+
+        do {
+            compareState = .succeeded(try await runtime.comparePackage(package.url))
+        } catch {
+            compareState = .failed(error.readableMessage)
         }
     }
 
@@ -80,6 +97,7 @@ enum AppCommandState<Value: Equatable>: Equatable {
 struct AppRuntime: Sendable {
     var createSnapshot: @Sendable (URL) async throws -> AppSnapshotSummary
     var openPackage: @Sendable (URL) async throws -> AppPackageSummary
+    var comparePackage: @Sendable (URL) async throws -> AppCompareSummary
     var detectCapabilities: @Sendable () async throws -> MacCapabilities
 
     static let live = AppRuntime(
@@ -90,6 +108,12 @@ struct AppRuntime: Sendable {
         openPackage: { packageURL in
             let package = try MimicryPackageStore().read(from: packageURL)
             return AppPackageSummary(package: package)
+        },
+        comparePackage: { packageURL in
+            let package = try MimicryPackageStore().read(from: packageURL)
+            let currentSnapshot = try await MimicrySnapshotBuilder().buildSnapshot().snapshot
+            let report = SnapshotDiffEngine().diff(reference: package.snapshot, current: currentSnapshot)
+            return AppCompareSummary(packageURL: package.url, report: report)
         },
         detectCapabilities: {
             await MacCapabilitiesDetector().detect()
@@ -150,38 +174,6 @@ struct AppPackageSummary: Equatable, Sendable {
     var unsupportedCount: Int
     var sections: [PackageSectionSummary]
 
-    init(
-        url: URL,
-        packageName: String,
-        createdAt: Date,
-        source: String,
-        macOSVersion: String,
-        architecture: String,
-        sectionCount: Int,
-        itemCount: Int,
-        warningCount: Int,
-        safeCount: Int,
-        reviewCount: Int,
-        excludedCount: Int,
-        unsupportedCount: Int,
-        sections: [PackageSectionSummary]
-    ) {
-        self.url = url
-        self.packageName = packageName
-        self.createdAt = createdAt
-        self.source = source
-        self.macOSVersion = macOSVersion
-        self.architecture = architecture
-        self.sectionCount = sectionCount
-        self.itemCount = itemCount
-        self.warningCount = warningCount
-        self.safeCount = safeCount
-        self.reviewCount = reviewCount
-        self.excludedCount = excludedCount
-        self.unsupportedCount = unsupportedCount
-        self.sections = sections
-    }
-
     init(package: MimicryPackage) {
         let snapshot = package.snapshot
         let items = snapshot.sections.flatMap(\.items)
@@ -193,22 +185,20 @@ struct AppPackageSummary: Equatable, Sendable {
             .managed
         ]
 
-        self.init(
-            url: package.url,
-            packageName: package.url.lastPathComponent,
-            createdAt: package.manifest.createdAt,
-            source: "\(snapshot.source.hostname) (\(snapshot.source.username))",
-            macOSVersion: snapshot.source.macOSVersion,
-            architecture: snapshot.source.architecture,
-            sectionCount: snapshot.sections.count,
-            itemCount: items.count,
-            warningCount: snapshot.sections.reduce(0) { $0 + $1.warnings.count },
-            safeCount: items.filter { $0.classification == .safeConfiguration }.count,
-            reviewCount: items.filter { reviewClassifications.contains($0.classification) }.count,
-            excludedCount: items.filter { $0.classification == .excluded }.count,
-            unsupportedCount: items.filter { $0.classification == .unsupported }.count,
-            sections: snapshot.sections.map(PackageSectionSummary.init(section:))
-        )
+        url = package.url
+        packageName = package.url.lastPathComponent
+        createdAt = package.manifest.createdAt
+        source = "\(snapshot.source.hostname) (\(snapshot.source.username))"
+        macOSVersion = snapshot.source.macOSVersion
+        architecture = snapshot.source.architecture
+        sectionCount = snapshot.sections.count
+        itemCount = items.count
+        warningCount = snapshot.sections.reduce(0) { $0 + $1.warnings.count }
+        safeCount = items.filter { $0.classification == .safeConfiguration }.count
+        reviewCount = items.filter { reviewClassifications.contains($0.classification) }.count
+        excludedCount = items.filter { $0.classification == .excluded }.count
+        unsupportedCount = items.filter { $0.classification == .unsupported }.count
+        sections = snapshot.sections.map(PackageSectionSummary.init(section:))
     }
 }
 
@@ -233,6 +223,61 @@ struct PackageSectionSummary: Equatable, Sendable, Identifiable {
     }
 }
 
+struct AppCompareSummary: Equatable, Sendable {
+    var packageURL: URL
+    var referenceSource: String
+    var currentSource: String
+    var sectionCount: Int
+    var itemCount: Int
+    var matchingCount: Int
+    var changedCount: Int
+    var missingCount: Int
+    var currentOnlyCount: Int
+    var skippedCount: Int
+    var blockedCount: Int
+    var sections: [CompareSectionSummary]
+
+    init(packageURL: URL, report: SnapshotDiffReport) {
+        self.packageURL = packageURL
+        referenceSource = "\(report.referenceSource.hostname) (\(report.referenceSource.username))"
+        currentSource = "\(report.currentSource.hostname) (\(report.currentSource.username))"
+        sectionCount = report.sections.count
+        itemCount = report.itemCount
+        matchingCount = report.count(.matching)
+        changedCount = report.count(.changed)
+        missingCount = report.count(.missing)
+        currentOnlyCount = report.count(.currentOnly)
+        skippedCount = report.count(.skipped)
+        blockedCount = report.count(.unsupported)
+        sections = report.sections.map(CompareSectionSummary.init(section:))
+    }
+}
+
+struct CompareSectionSummary: Equatable, Sendable, Identifiable {
+    var id: String { name }
+    var name: String
+    var itemCount: Int
+    var matchingCount: Int
+    var changedCount: Int
+    var missingCount: Int
+    var currentOnlyCount: Int
+    var skippedCount: Int
+    var blockedCount: Int
+    var warningCount: Int
+
+    init(section: SnapshotSectionDiff) {
+        name = section.displayName
+        itemCount = section.items.count
+        matchingCount = section.count(.matching)
+        changedCount = section.count(.changed)
+        missingCount = section.count(.missing)
+        currentOnlyCount = section.count(.currentOnly)
+        skippedCount = section.count(.skipped)
+        blockedCount = section.count(.unsupported)
+        warningCount = section.referenceWarnings.count + section.currentWarnings.count
+    }
+}
+
 struct AppDiagnosticsSummary: Equatable, Sendable {
     var host: String
     var macOSVersion: String
@@ -253,6 +298,12 @@ struct AppDiagnosticsSummary: Equatable, Sendable {
             DiagnosticRow(label: "App Store", value: capabilities.appStoreState.displayLabel),
             DiagnosticRow(label: "Management", value: capabilities.managementState.displayLabel)
         ]
+    }
+}
+
+private extension SnapshotSectionDiff {
+    func count(_ status: SnapshotDiffStatus) -> Int {
+        items.filter { $0.status == status }.count
     }
 }
 

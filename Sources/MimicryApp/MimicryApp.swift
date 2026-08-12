@@ -83,7 +83,7 @@ struct DetailView: View {
                 case .apply:
                     ApplyView()
                 case .compare:
-                    CompareView()
+                    CompareView(model: model)
                 case .history:
                     HistoryView(model: model)
                 case .diagnostics:
@@ -244,14 +244,42 @@ private struct ApplyView: View {
 }
 
 private struct CompareView: View {
+    @ObservedObject var model: AppModel
+
     var body: some View {
-        ContentPanel(title: "Diff Groups", systemImage: "square.split.2x1") {
-            LazyVGrid(columns: [GridItem(.adaptive(minimum: 180), spacing: 12)], spacing: 12) {
-                ForEach(DiffGroup.current) { group in
-                    CompactStatusTile(title: group.title, value: group.detail, systemImage: group.systemImage)
+        TwoColumnPanels {
+            ContentPanel(title: "Package", systemImage: "doc.text.magnifyingglass") {
+                VStack(alignment: .leading, spacing: 14) {
+                    Button {
+                        Task {
+                            await model.compareCurrentPackage()
+                        }
+                    } label: {
+                        Label("Compare", systemImage: "square.split.2x1")
+                    }
+                    .buttonStyle(.borderedProminent)
+                    .disabled(!canCompare)
+
+                    PackageInspectView(state: model.packageState)
                 }
             }
+
+            ContentPanel(title: "Diff Result", systemImage: "square.split.2x1") {
+                CompareResultView(state: model.compareState)
+            }
         }
+    }
+
+    private var canCompare: Bool {
+        guard !model.compareState.isRunning else {
+            return false
+        }
+
+        if case .succeeded = model.packageState {
+            return true
+        }
+
+        return false
     }
 }
 
@@ -602,6 +630,104 @@ private struct PackageSectionRow: View {
             }
         }
         .font(.subheadline)
+    }
+}
+
+private struct CompareResultView: View {
+    var state: AppCommandState<AppCompareSummary>
+
+    var body: some View {
+        switch state {
+        case .idle:
+            VStack(alignment: .leading, spacing: 14) {
+                EmptyStateRow(title: "No comparison yet", detail: "Open a package and compare it with this Mac.", systemImage: "square.split.2x1")
+                DiffGroupGrid(summary: nil)
+            }
+        case .running:
+            ProgressRow(title: "Comparing package", detail: "Building a current snapshot without changing settings.")
+        case let .succeeded(summary):
+            VStack(alignment: .leading, spacing: 14) {
+                KeyValueList(rows: [
+                    KeyValueRow(label: "Package", value: summary.packageURL.lastPathComponent),
+                    KeyValueRow(label: "Reference", value: summary.referenceSource),
+                    KeyValueRow(label: "Current", value: summary.currentSource),
+                    KeyValueRow(label: "Sections", value: "\(summary.sectionCount)"),
+                    KeyValueRow(label: "Items", value: "\(summary.itemCount)")
+                ])
+
+                DiffGroupGrid(summary: summary)
+
+                if !summary.sections.isEmpty {
+                    Divider()
+                    VStack(alignment: .leading, spacing: 10) {
+                        ForEach(summary.sections.prefix(8)) { section in
+                            CompareSectionRow(section: section)
+                        }
+                    }
+                }
+            }
+        case let .failed(message):
+            FailureRow(title: "Comparison failed", detail: message)
+        }
+    }
+}
+
+private struct DiffGroupGrid: View {
+    var summary: AppCompareSummary?
+
+    var body: some View {
+        LazyVGrid(columns: [GridItem(.adaptive(minimum: 130), spacing: 10)], spacing: 10) {
+            CompactStatusTile(title: "Matching", value: value(\.matchingCount), systemImage: "equal.circle")
+            CompactStatusTile(title: "Changed", value: value(\.changedCount), systemImage: "arrow.triangle.2.circlepath")
+            CompactStatusTile(title: "Missing", value: value(\.missingCount), systemImage: "plus.circle")
+            CompactStatusTile(title: "Current Only", value: value(\.currentOnlyCount), systemImage: "minus.circle")
+            CompactStatusTile(title: "Skipped", value: value(\.skippedCount), systemImage: "forward.end.circle")
+            CompactStatusTile(title: "Blocked", value: value(\.blockedCount), systemImage: "xmark.octagon")
+        }
+    }
+
+    private func value(_ keyPath: KeyPath<AppCompareSummary, Int>) -> String {
+        guard let summary else {
+            return "-"
+        }
+
+        return "\(summary[keyPath: keyPath])"
+    }
+}
+
+private struct CompareSectionRow: View {
+    var section: CompareSectionSummary
+
+    var body: some View {
+        HStack(spacing: 10) {
+            Image(systemName: "rectangle.stack")
+                .frame(width: 22)
+                .foregroundStyle(.secondary)
+            VStack(alignment: .leading, spacing: 2) {
+                Text(section.name)
+                Text(sectionDetail)
+                    .font(.caption)
+                    .foregroundStyle(.secondary)
+            }
+            Spacer()
+            if section.warningCount > 0 {
+                Text("\(section.warningCount) warnings")
+                    .foregroundStyle(.orange)
+            }
+        }
+        .font(.subheadline)
+    }
+
+    private var sectionDetail: String {
+        [
+            "\(section.itemCount) items",
+            "\(section.matchingCount) matching",
+            "\(section.changedCount) changed",
+            "\(section.missingCount) missing",
+            "\(section.currentOnlyCount) current only",
+            "\(section.skippedCount) skipped",
+            "\(section.blockedCount) blocked"
+        ].joined(separator: " / ")
     }
 }
 
