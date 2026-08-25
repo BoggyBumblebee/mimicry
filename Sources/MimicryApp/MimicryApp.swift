@@ -23,7 +23,7 @@ struct MimicryApp: App {
 
 struct RootView: View {
     @ObservedObject private var model: AppModel
-    @State private var selection: AppSection? = .dashboard
+    @State private var selection: AppSection? = .snapshot
 
     init(model: AppModel = AppModel()) {
         self.model = model
@@ -33,7 +33,7 @@ struct RootView: View {
         NavigationSplitView {
             Sidebar(selection: $selection)
         } detail: {
-            DetailView(section: selection ?? .dashboard, model: model)
+            DetailView(section: selection ?? .snapshot, model: model)
         }
         .frame(minWidth: 980, minHeight: 660)
         .toolbar {
@@ -138,8 +138,6 @@ struct DetailView: View {
                 SectionHeader(section: section)
 
                 switch section {
-                case .dashboard:
-                    DashboardView()
                 case .snapshot:
                     SnapshotView(model: model)
                 case .apply:
@@ -184,7 +182,29 @@ private struct SectionHeader: View {
     }
 }
 
-private struct DashboardView: View {
+private struct SnapshotView: View {
+    @ObservedObject var model: AppModel
+
+    var body: some View {
+        if shouldShowStartingContent {
+            SnapshotStartingContentView()
+        } else {
+            ContentPanel(title: "Package Review", systemImage: "doc.text.magnifyingglass") {
+                PackageReviewView(snapshotState: model.snapshotState, packageState: model.packageState)
+            }
+        }
+    }
+
+    private var shouldShowStartingContent: Bool {
+        if case .idle = model.snapshotState, case .idle = model.packageState {
+            return true
+        }
+
+        return false
+    }
+}
+
+private struct SnapshotStartingContentView: View {
     private let providers = ProviderSummary.current
     private let workflow = WorkflowStep.current
 
@@ -213,16 +233,6 @@ private struct DashboardView: View {
                     }
                 }
             }
-        }
-    }
-}
-
-private struct SnapshotView: View {
-    @ObservedObject var model: AppModel
-
-    var body: some View {
-        ContentPanel(title: "Package Review", systemImage: "doc.text.magnifyingglass") {
-            PackageReviewView(snapshotState: model.snapshotState, packageState: model.packageState)
         }
     }
 }
@@ -1557,7 +1567,6 @@ private enum AuditLogSavePanel {
 }
 
 enum AppSection: String, CaseIterable, Identifiable {
-    case dashboard
     case snapshot
     case apply
     case compare
@@ -1568,8 +1577,6 @@ enum AppSection: String, CaseIterable, Identifiable {
 
     var title: String {
         switch self {
-        case .dashboard:
-            "Dashboard"
         case .snapshot:
             "Snapshot"
         case .apply:
@@ -1585,8 +1592,6 @@ enum AppSection: String, CaseIterable, Identifiable {
 
     var subtitle: String {
         switch self {
-        case .dashboard:
-            "Workflow and provider coverage."
         case .snapshot:
             "Review the open package contents."
         case .apply:
@@ -1602,8 +1607,6 @@ enum AppSection: String, CaseIterable, Identifiable {
 
     var systemImage: String {
         switch self {
-        case .dashboard:
-            "rectangle.3.group"
         case .snapshot:
             "camera.viewfinder"
         case .apply:

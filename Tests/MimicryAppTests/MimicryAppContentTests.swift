@@ -16,8 +16,8 @@ final class MimicryAppContentTests: XCTestCase {
         XCTAssertGreaterThan(host.fittingSize.height, 0)
     }
 
-    func testDashboardDetailCanBeHosted() {
-        let host = NSHostingView(rootView: DetailView(section: .dashboard, model: Self.makeModel()))
+    func testSnapshotDetailCanBeHosted() {
+        let host = NSHostingView(rootView: DetailView(section: .snapshot, model: Self.makeModel()))
         host.frame = CGRect(x: 0, y: 0, width: 900, height: 640)
 
         host.layoutSubtreeIfNeeded()
@@ -50,7 +50,6 @@ final class MimicryAppContentTests: XCTestCase {
 
     func testSectionsCoverPrimaryWorkflows() {
         XCTAssertEqual(AppSection.allCases.map(\.title), [
-            "Dashboard",
             "Snapshot",
             "Apply",
             "Compare",
@@ -61,7 +60,7 @@ final class MimicryAppContentTests: XCTestCase {
         XCTAssertTrue(AppSection.allCases.allSatisfy { !$0.systemImage.isEmpty })
     }
 
-    func testDashboardProvidersExplainCapturedAreas() {
+    func testSnapshotStartingContentExplainsCapturedAreas() {
         let providers = ProviderSummary.current
 
         XCTAssertEqual(providers.map(\.title), [
@@ -77,7 +76,6 @@ final class MimicryAppContentTests: XCTestCase {
         ])
         XCTAssertTrue(providers.contains { $0.detail.contains("confirmed safe write path") })
         XCTAssertTrue(providers.contains { $0.detail.contains("browser import handoff") })
-        XCTAssertFalse(providers.contains { $0.title == "Quality" })
     }
 
     func testHomebrewPackageItemsAreGroupedForReview() {
@@ -128,7 +126,12 @@ final class MimicryAppContentTests: XCTestCase {
         ])
     }
 
-    func testWorkflowStepsMatchTrustedLoop() {
+    func testSnapshotIsThePrimaryStartingSection() {
+        XCTAssertEqual(AppSection.allCases.first, .snapshot)
+        XCTAssertFalse(AppSection.allCases.map(\.title).contains("Dashboard"))
+    }
+
+    func testSnapshotStartingContentExplainsTrustedLoop() {
         XCTAssertEqual(WorkflowStep.current.map(\.title), [
             "Snapshot: Capture",
             "Snapshot: Inspect",
