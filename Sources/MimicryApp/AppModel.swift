@@ -434,6 +434,7 @@ struct AppPackageSummary: Equatable, Sendable {
     var reviewCount: Int
     var excludedCount: Int
     var unsupportedCount: Int
+    var compatibility: AppCompatibilitySummary
     var sections: [PackageSectionSummary]
 
     init(package: MimicryPackage) {
@@ -460,6 +461,7 @@ struct AppPackageSummary: Equatable, Sendable {
         reviewCount = items.filter { reviewClassifications.contains($0.classification) }.count
         excludedCount = items.filter { $0.classification == .excluded }.count
         unsupportedCount = items.filter { $0.classification == .unsupported }.count
+        compatibility = AppCompatibilitySummary(items: items)
         sections = snapshot.sections.map(PackageSectionSummary.init(section:))
     }
 }
@@ -550,6 +552,7 @@ struct AppApplyPlanSummary: Equatable, Sendable {
     var skipCount: Int
     var blockedCount: Int
     var userActionCount: Int
+    var compatibility: AppCompatibilitySummary
     var groups: [ApplyActionGroupSummary]
 
     init(packageURL: URL, plan: SnapshotApplyPlan) {
@@ -562,6 +565,7 @@ struct AppApplyPlanSummary: Equatable, Sendable {
         skipCount = plan.count(.skip)
         blockedCount = plan.count(.blocked)
         userActionCount = plan.count(.requiresUserAction)
+        compatibility = AppCompatibilitySummary(diffItems: plan.diff.sections.flatMap(\.items))
         groups = PlannedActionKind.displayOrder.compactMap { kind in
             let actions = plan.actions.filter { $0.kind == kind }
             guard !actions.isEmpty else {
@@ -654,6 +658,59 @@ struct AppApplyResultSummary: Equatable, Sendable, Identifiable {
     }
 }
 
+struct AppCompatibilitySummary: Equatable, Sendable {
+    var managedCount: Int
+    var machineSpecificCount: Int
+    var hardwareSpecificCount: Int
+    var userSpecificCount: Int
+    var unsupportedCount: Int
+
+    init(
+        managedCount: Int = 0,
+        machineSpecificCount: Int = 0,
+        hardwareSpecificCount: Int = 0,
+        userSpecificCount: Int = 0,
+        unsupportedCount: Int = 0
+    ) {
+        self.managedCount = managedCount
+        self.machineSpecificCount = machineSpecificCount
+        self.hardwareSpecificCount = hardwareSpecificCount
+        self.userSpecificCount = userSpecificCount
+        self.unsupportedCount = unsupportedCount
+    }
+
+    init(items: [SnapshotItem]) {
+        self.init(
+            managedCount: items.filter(\.isManaged).count,
+            machineSpecificCount: items.filter(\.isMachineSpecific).count,
+            hardwareSpecificCount: items.filter(\.isHardwareSpecific).count,
+            userSpecificCount: items.filter(\.isUserSpecific).count,
+            unsupportedCount: items.filter { $0.classification == .unsupported }.count
+        )
+    }
+
+    init(diffItems: [SnapshotItemDiff]) {
+        let relevantItems = diffItems.filter { item in
+            item.status == .changed || item.status == .missing || item.status == .unsupported
+        }
+        self.init(
+            managedCount: relevantItems.filter(\.isManaged).count,
+            machineSpecificCount: relevantItems.filter(\.isMachineSpecific).count,
+            hardwareSpecificCount: relevantItems.filter(\.isHardwareSpecific).count,
+            userSpecificCount: relevantItems.filter(\.isUserSpecific).count,
+            unsupportedCount: relevantItems.filter { $0.classification == .unsupported }.count
+        )
+    }
+
+    var constrainedCount: Int {
+        managedCount + machineSpecificCount + hardwareSpecificCount + userSpecificCount + unsupportedCount
+    }
+
+    var hasConstrainedItems: Bool {
+        constrainedCount > 0
+    }
+}
+
 enum AppAuditOperation: String, Codable, Equatable, Sendable {
     case snapshot
     case openPackage
@@ -678,8 +735,8 @@ enum AppAuditOperation: String, Codable, Equatable, Sendable {
 }
 
 struct AppAuditLogEntry: Codable, Equatable, Sendable, Identifiable {
-    var id: UUID
-    var timestamp: Date
+    var id: UUID = UUID()
+    var timestamp: Date = Date()
     var operation: AppAuditOperation
     var status: String
     var packageURL: URL?
@@ -687,28 +744,6 @@ struct AppAuditLogEntry: Codable, Equatable, Sendable, Identifiable {
     var backupURL: URL?
     var message: String
     var metrics: [String: Int]
-
-    init(
-        id: UUID = UUID(),
-        timestamp: Date = Date(),
-        operation: AppAuditOperation,
-        status: String,
-        packageURL: URL?,
-        outputURL: URL? = nil,
-        backupURL: URL? = nil,
-        message: String,
-        metrics: [String: Int] = [:]
-    ) {
-        self.id = id
-        self.timestamp = timestamp
-        self.operation = operation
-        self.status = status
-        self.packageURL = packageURL
-        self.outputURL = outputURL
-        self.backupURL = backupURL
-        self.message = message
-        self.metrics = metrics
-    }
 }
 
 struct AppAuditExportSummary: Equatable, Sendable {
@@ -742,12 +777,14 @@ struct AppDiagnosticsSummary: Equatable, Sendable {
     var host: String
     var macOSVersion: String
     var architecture: String
+    var managementDetail: String
     var rows: [DiagnosticRow]
 
     init(capabilities: MacCapabilities) {
         host = capabilities.hostname
         macOSVersion = capabilities.macOSVersion
         architecture = capabilities.architecture.rawValue
+        managementDetail = capabilities.managementState.managementDetail
         rows = [
             DiagnosticRow(label: "Command Line Tools", value: capabilities.hasCommandLineTools.availabilityLabel),
             DiagnosticRow(label: "Homebrew", value: capabilities.homebrew.isInstalled.availabilityLabel),
@@ -758,6 +795,53 @@ struct AppDiagnosticsSummary: Equatable, Sendable {
             DiagnosticRow(label: "App Store", value: capabilities.appStoreState.displayLabel),
             DiagnosticRow(label: "Management", value: capabilities.managementState.displayLabel)
         ]
+    }
+}
+
+private extension SnapshotItem {
+    var isManaged: Bool {
+        classification == .managed || applicability == .managedDeviceOnly
+    }
+
+    var isMachineSpecific: Bool {
+        classification == .machineSpecific || applicability == .machineSpecific
+    }
+
+    var isHardwareSpecific: Bool {
+        classification == .hardwareSpecific || applicability.isHardwareSpecific
+    }
+
+    var isUserSpecific: Bool {
+        applicability == .userSpecific
+    }
+}
+
+private extension SnapshotItemDiff {
+    var isManaged: Bool {
+        classification == .managed || applicability == .managedDeviceOnly
+    }
+
+    var isMachineSpecific: Bool {
+        classification == .machineSpecific || applicability == .machineSpecific
+    }
+
+    var isHardwareSpecific: Bool {
+        classification == .hardwareSpecific || applicability.isHardwareSpecific
+    }
+
+    var isUserSpecific: Bool {
+        applicability == .userSpecific
+    }
+}
+
+private extension ConfigurationApplicability {
+    var isHardwareSpecific: Bool {
+        switch self {
+        case .appleSiliconOnly, .intelOnly, .laptopOnly, .desktopOnly, .externalDisplayDependent, .externalInputDeviceDependent:
+            true
+        case .universal, .userSpecific, .machineSpecific, .managedDeviceOnly:
+            false
+        }
     }
 }
 
@@ -884,6 +968,25 @@ private extension CapabilityState {
             "Unsupported"
         case .unknown:
             "Unknown"
+        }
+    }
+
+    var managementDetail: String {
+        switch self {
+        case .managed:
+            "This Mac appears managed; some settings may be controlled by profiles or MDM."
+        case .requiresUserAction:
+            "Management state needs user review before applying managed or protected settings."
+        case .unavailable:
+            "No local management signals were available."
+        case .unknown:
+            "Management state could not be confirmed from local diagnostics."
+        case .available, .enabled:
+            "Management checks are available; review package managed-setting counts before applying."
+        case .disabled:
+            "Management checks appear disabled on this Mac."
+        case .unsupported:
+            "Management checks are unsupported on this Mac."
         }
     }
 }

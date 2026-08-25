@@ -704,6 +704,8 @@ private struct PackageInspectView: View {
                     CompactStatusTile(title: "Unsupported", value: "\(summary.unsupportedCount)", systemImage: "xmark.octagon")
                 }
 
+                CompatibilitySummaryView(summary: summary.compatibility)
+
                 if !summary.sections.isEmpty {
                     Divider()
                     VStack(alignment: .leading, spacing: 10) {
@@ -867,6 +869,8 @@ private struct ApplyPlanResultView: View {
 
                 ApplyGroupGrid(summary: summary)
 
+                CompatibilitySummaryView(summary: summary.compatibility)
+
                 if summary.groups.isEmpty {
                     EmptyStateRow(title: "No actions required", detail: "The dry-run planner found no changes to apply.", systemImage: "checkmark.circle")
                 } else {
@@ -903,6 +907,30 @@ private struct ApplyGroupGrid: View {
         }
 
         return "\(summary[keyPath: keyPath])"
+    }
+}
+
+private struct CompatibilitySummaryView: View {
+    var summary: AppCompatibilitySummary
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: 10) {
+            if summary.hasConstrainedItems {
+                EmptyStateRow(
+                    title: "Compatibility review needed",
+                    detail: "Managed, machine-specific, hardware-specific, user-specific, or unsupported items need review before apply.",
+                    systemImage: "lock.shield"
+                )
+            }
+
+            LazyVGrid(columns: [GridItem(.adaptive(minimum: 130), spacing: 10)], spacing: 10) {
+                CompactStatusTile(title: "Managed", value: "\(summary.managedCount)", systemImage: "lock.shield")
+                CompactStatusTile(title: "Machine", value: "\(summary.machineSpecificCount)", systemImage: "desktopcomputer")
+                CompactStatusTile(title: "Hardware", value: "\(summary.hardwareSpecificCount)", systemImage: "cpu")
+                CompactStatusTile(title: "User", value: "\(summary.userSpecificCount)", systemImage: "person.crop.circle")
+                CompactStatusTile(title: "Unsupported", value: "\(summary.unsupportedCount)", systemImage: "xmark.octagon")
+            }
+        }
     }
 }
 
@@ -1199,7 +1227,8 @@ private struct DiagnosticsResultView: View {
                 KeyValueList(rows: [
                     KeyValueRow(label: "Host", value: summary.host),
                     KeyValueRow(label: "macOS", value: summary.macOSVersion),
-                    KeyValueRow(label: "Architecture", value: summary.architecture)
+                    KeyValueRow(label: "Architecture", value: summary.architecture),
+                    KeyValueRow(label: "Management Review", value: summary.managementDetail)
                 ])
 
                 Divider()

@@ -79,4 +79,6 @@ Mimicry must:
 - avoid attempting to override MDM-enforced configuration
 - report settings that cannot be changed because they are managed
 
+The GUI surfaces managed, machine-specific, hardware-specific, user-specific, and unsupported compatibility counts during Package Review and Apply preview. Diagnostics also includes management detail so users can see whether local MDM/profile signals were available before applying reviewed changes.
+
 Do not attempt to remove or bypass MDM.

@@ -201,6 +201,8 @@ final class MimicryAppContentTests: XCTestCase {
         XCTAssertEqual(expected.reviewCount, 2)
         XCTAssertEqual(expected.excludedCount, 1)
         XCTAssertEqual(expected.unsupportedCount, 1)
+        XCTAssertEqual(expected.compatibility.managedCount, 1)
+        XCTAssertEqual(expected.compatibility.unsupportedCount, 1)
         XCTAssertEqual(expected.sections.map(\.name), ["Environment", "Browser"])
     }
 
@@ -362,7 +364,35 @@ final class MimicryAppContentTests: XCTestCase {
         XCTAssertEqual(summary.skipCount, 2)
         XCTAssertEqual(summary.blockedCount, 1)
         XCTAssertEqual(summary.userActionCount, 1)
+        XCTAssertEqual(summary.compatibility.unsupportedCount, 1)
         XCTAssertEqual(summary.groups.map(\.title), ["SKIP", "BLOCKED", "REQUIRES USER ACTION"])
+    }
+
+    func testCompatibilitySummaryCountsManagedMachineHardwareAndUserSpecificItems() {
+        let summary = AppCompatibilitySummary(items: [
+            SnapshotItem(key: "managed", value: .string("yes"), classification: .managed),
+            SnapshotItem(key: "machine", value: .string("host"), classification: .machineSpecific),
+            SnapshotItem(
+                key: "hardware",
+                value: .string("arm64"),
+                classification: .hardwareSpecific,
+                applicability: .appleSiliconOnly
+            ),
+            SnapshotItem(
+                key: "user",
+                value: .string("cmb"),
+                classification: .userMustReview,
+                applicability: .userSpecific
+            ),
+            SnapshotItem(key: "unsupported", value: .absent, classification: .unsupported)
+        ])
+
+        XCTAssertEqual(summary.managedCount, 1)
+        XCTAssertEqual(summary.machineSpecificCount, 1)
+        XCTAssertEqual(summary.hardwareSpecificCount, 1)
+        XCTAssertEqual(summary.userSpecificCount, 1)
+        XCTAssertEqual(summary.unsupportedCount, 1)
+        XCTAssertTrue(summary.hasConstrainedItems)
     }
 
     func testPlanApplyReportsFailure() async {
@@ -687,6 +717,7 @@ final class MimicryAppContentTests: XCTestCase {
         XCTAssertEqual(model.diagnosticsState, .succeeded(expected))
         XCTAssertTrue(expected.rows.contains(DiagnosticRow(label: "Homebrew", value: "Available")))
         XCTAssertTrue(expected.rows.contains(DiagnosticRow(label: "Management", value: "Managed")))
+        XCTAssertTrue(expected.managementDetail.contains("managed"))
     }
 
     func testHistoryStoreKeepsMostRecentPackageFirst() {
