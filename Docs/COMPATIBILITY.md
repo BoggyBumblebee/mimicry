@@ -50,6 +50,8 @@ For each setting, define applicability:
 
 When applying a snapshot, Mimicry must evaluate applicability and skip incompatible settings with an explanation.
 
+The `environment` section is stricter: it is always informational during apply planning. Hardware model, hostname, username, and similar provenance fields may be captured, inspected, and compared, but they must not become apply actions for a destination Mac.
+
 Example:
 
 ```text

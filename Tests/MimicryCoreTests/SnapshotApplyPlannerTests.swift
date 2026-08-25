@@ -166,6 +166,52 @@ final class SnapshotApplyPlannerTests: XCTestCase {
 
         XCTAssertTrue(plan.actions.isEmpty)
     }
+
+    func testPlanSkipsEnvironmentMetadataAsInformational() {
+        let reference = MimicrySnapshot.applyFixture(
+            sections: [
+                SnapshotSection(
+                    identifier: "environment",
+                    displayName: "Environment",
+                    items: [
+                        SnapshotItem(key: "hardware.model", value: .string("MacBookPro18,3"), classification: .hardwareSpecific),
+                        SnapshotItem(key: "hostname", value: .string("reference-mac"), classification: .machineSpecific),
+                        SnapshotItem(
+                            key: "username",
+                            value: .string("cmb"),
+                            classification: .userMustReview,
+                            applicability: .userSpecific
+                        )
+                    ]
+                )
+            ]
+        )
+        let current = MimicrySnapshot.applyFixture(
+            sections: [
+                SnapshotSection(
+                    identifier: "environment",
+                    displayName: "Environment",
+                    items: [
+                        SnapshotItem(key: "hardware.model", value: .string("Mac16,1"), classification: .hardwareSpecific),
+                        SnapshotItem(key: "hostname", value: .string("current-mac"), classification: .machineSpecific),
+                        SnapshotItem(
+                            key: "username",
+                            value: .string("other-user"),
+                            classification: .userMustReview,
+                            applicability: .userSpecific
+                        )
+                    ]
+                )
+            ]
+        )
+
+        let plan = SnapshotApplyPlanner().plan(reference: reference, current: current)
+
+        XCTAssertEqual(plan.count(.skip), 1)
+        XCTAssertEqual(plan.count(.requiresUserAction), 0)
+        XCTAssertEqual(plan.actions.first?.providerIdentifier, "environment")
+        XCTAssertEqual(plan.actions.first?.summary, "Environment metadata is informational and is not applied.")
+    }
 }
 
 private extension MimicrySnapshot {

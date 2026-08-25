@@ -208,15 +208,17 @@ final class MimicryAppContentTests: XCTestCase {
         XCTAssertEqual(model.packageState, .succeeded(expected))
         XCTAssertEqual(model.recentPackages.map(\.name), ["opened.mimicry"])
         XCTAssertEqual(expected.safeCount, 1)
-        XCTAssertEqual(expected.reviewCount, 2)
+        XCTAssertEqual(expected.reviewCount, 3)
         XCTAssertEqual(expected.excludedCount, 1)
         XCTAssertEqual(expected.unsupportedCount, 1)
         XCTAssertEqual(expected.compatibility.managedCount, 1)
         XCTAssertEqual(expected.compatibility.unsupportedCount, 1)
         XCTAssertEqual(expected.sections.map(\.name), ["Environment", "Browser"])
         XCTAssertEqual(expected.sections.first?.warnings.first?.message, "Review environment")
-        XCTAssertEqual(expected.sections.first?.items.map(\.key), ["safe", "review", "excluded"])
+        XCTAssertEqual(expected.sections.first?.items.map(\.key), ["safe", "hostname", "review", "excluded"])
         XCTAssertEqual(expected.sections.first?.items.first?.classification, "Safe Configuration")
+        XCTAssertEqual(expected.sections.first?.items.map(\.isInformationalOnly), [true, true, true, true])
+        XCTAssertEqual(expected.sections.last?.items.map(\.isInformationalOnly), [false, false])
     }
 
     func testOpenPackageReportsFailure() async {
@@ -290,7 +292,7 @@ final class MimicryAppContentTests: XCTestCase {
         XCTAssertEqual(model.compareState, .succeeded(expected))
         XCTAssertEqual(expected.matchingCount, 2)
         XCTAssertEqual(expected.changedCount, 1)
-        XCTAssertEqual(expected.missingCount, 0)
+        XCTAssertEqual(expected.missingCount, 1)
         XCTAssertEqual(expected.currentOnlyCount, 1)
         XCTAssertEqual(expected.skippedCount, 1)
         XCTAssertEqual(expected.blockedCount, 1)
@@ -371,14 +373,18 @@ final class MimicryAppContentTests: XCTestCase {
         XCTAssertEqual(summary.packageURL, URL(fileURLWithPath: "/tmp/opened.mimicry"))
         XCTAssertEqual(summary.referenceSource, "source-mac (cmb)")
         XCTAssertEqual(summary.currentSource, "current-mac (cmb)")
-        XCTAssertEqual(summary.actionCount, 4)
+        XCTAssertEqual(summary.actionCount, 2)
         XCTAssertEqual(summary.installCount, 0)
         XCTAssertEqual(summary.configureCount, 0)
-        XCTAssertEqual(summary.skipCount, 2)
+        XCTAssertEqual(summary.skipCount, 1)
         XCTAssertEqual(summary.blockedCount, 1)
-        XCTAssertEqual(summary.userActionCount, 1)
+        XCTAssertEqual(summary.userActionCount, 0)
         XCTAssertEqual(summary.compatibility.unsupportedCount, 1)
-        XCTAssertEqual(summary.groups.map(\.title), ["SKIP", "BLOCKED", "REQUIRES USER ACTION"])
+        XCTAssertEqual(summary.groups.map(\.title), ["SKIP", "BLOCKED"])
+        XCTAssertEqual(
+            summary.groups.first?.actions.first?.detail,
+            "Environment metadata is informational and is not applied."
+        )
     }
 
     func testCompatibilitySummaryCountsManagedMachineHardwareAndUserSpecificItems() {
@@ -669,7 +675,7 @@ final class MimicryAppContentTests: XCTestCase {
         XCTAssertEqual(model.auditLog[0].metrics["bookmarksExported"], 7)
         XCTAssertEqual(model.auditLog[1].backupURL, URL(fileURLWithPath: "/tmp/finder-backup.json"))
         XCTAssertEqual(model.auditLog[1].metrics["applied"], 1)
-        XCTAssertEqual(model.auditLog[2].metrics["actions"], 4)
+        XCTAssertEqual(model.auditLog[2].metrics["actions"], 2)
     }
 
     func testAuditLogExportWritesStructuredJSON() async throws {
@@ -691,7 +697,7 @@ final class MimicryAppContentTests: XCTestCase {
         XCTAssertEqual(document.schemaVersion, 1)
         XCTAssertEqual(document.entries.map(\.operation), [.dryRunApply, .openPackage])
         XCTAssertEqual(document.entries.first?.packageURL, URL(fileURLWithPath: "/tmp/opened.mimicry"))
-        XCTAssertEqual(document.entries.first?.metrics["actions"], 4)
+        XCTAssertEqual(document.entries.first?.metrics["actions"], 2)
     }
 
     func testAuditLogExportRequiresEntries() {
@@ -823,6 +829,7 @@ final class MimicryAppContentTests: XCTestCase {
                         displayName: "Environment",
                         items: [
                             SnapshotItem(key: "safe", value: .string("ok")),
+                            SnapshotItem(key: "hostname", value: .string("source-mac"), classification: .machineSpecific),
                             SnapshotItem(key: "review", value: .string("check"), classification: .userMustReview),
                             SnapshotItem(key: "excluded", value: .string("redacted"), classification: .excluded)
                         ],

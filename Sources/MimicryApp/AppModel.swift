@@ -493,7 +493,7 @@ struct PackageSectionSummary: Equatable, Sendable, Identifiable {
             name: section.displayName,
             itemCount: section.items.count,
             warningCount: section.warnings.count,
-            items: section.items.map(PackageItemSummary.init(item:)),
+            items: section.items.map { PackageItemSummary(item: $0, sectionIdentifier: section.identifier) },
             warnings: section.warnings.map(PackageWarningSummary.init(warning:))
         )
     }
@@ -505,12 +505,14 @@ struct PackageItemSummary: Equatable, Sendable, Identifiable {
     var value: String
     var classification: String
     var applicability: String
+    var isInformationalOnly: Bool
 
-    init(item: SnapshotItem) {
+    init(item: SnapshotItem, sectionIdentifier: String = "") {
         key = item.key
         value = item.value.renderedDescription
         classification = item.classification.rawValue.readableIdentifier
         applicability = item.applicability.rawValue.readableIdentifier
+        isInformationalOnly = sectionIdentifier == "environment"
     }
 }
 

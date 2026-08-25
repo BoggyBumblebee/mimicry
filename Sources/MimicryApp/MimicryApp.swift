@@ -741,7 +741,7 @@ private struct PackageItemRow: View {
                 HStack(spacing: 8) {
                     Text(item.key)
                         .font(.caption.weight(.semibold))
-                    Text(item.classification)
+                    Text(statusLabel)
                         .font(.caption)
                         .foregroundStyle(itemColor)
                 }
@@ -750,7 +750,7 @@ private struct PackageItemRow: View {
                     .foregroundStyle(.secondary)
                     .lineLimit(2)
                     .truncationMode(.middle)
-                Text(item.applicability)
+                Text(detailLabel)
                     .font(.caption2)
                     .foregroundStyle(.tertiary)
             }
@@ -759,29 +759,47 @@ private struct PackageItemRow: View {
     }
 
     private var itemIcon: String {
+        if item.isInformationalOnly {
+            return "info.circle"
+        }
+
         switch item.classification {
         case "Safe Configuration":
-            "checkmark.circle"
+            return "checkmark.circle"
         case "Unsupported":
-            "xmark.octagon"
+            return "xmark.octagon"
         case "Excluded":
-            "forward.end.circle"
+            return "forward.end.circle"
         default:
-            "person.crop.circle.badge.exclamationmark"
+            return "person.crop.circle.badge.exclamationmark"
         }
     }
 
     private var itemColor: Color {
+        if item.isInformationalOnly {
+            return .blue
+        }
+
         switch item.classification {
         case "Safe Configuration":
-            .green
+            return .green
         case "Unsupported":
-            .red
+            return .red
         case "Excluded":
-            .secondary
+            return .secondary
         default:
-            .orange
+            return .orange
         }
+    }
+
+    private var statusLabel: String {
+        item.isInformationalOnly ? "Not Applied" : item.classification
+    }
+
+    private var detailLabel: String {
+        item.isInformationalOnly
+            ? "\(item.classification), \(item.applicability)"
+            : item.applicability
     }
 }
 

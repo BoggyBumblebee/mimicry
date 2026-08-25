@@ -15,6 +15,8 @@ public struct SnapshotApplyPlan: Equatable, Sendable {
 }
 
 public struct SnapshotApplyPlanner: Sendable {
+    private static let informationalSectionIdentifiers = Set(["environment"])
+
     private let diffEngine: SnapshotDiffEngine
 
     public init(diffEngine: SnapshotDiffEngine = SnapshotDiffEngine()) {
@@ -24,6 +26,10 @@ public struct SnapshotApplyPlanner: Sendable {
     public func plan(reference: MimicrySnapshot, current: MimicrySnapshot) -> SnapshotApplyPlan {
         let diff = diffEngine.diff(reference: reference, current: current)
         let actions = diff.sections.flatMap { section in
+            if Self.informationalSectionIdentifiers.contains(section.identifier) {
+                return informationalActions(section: section)
+            }
+
             if BrowserBookmarkApplyPlanner.isBrowserSection(section.identifier) {
                 return BrowserBookmarkApplyPlanner(section: section).actions()
             }
@@ -34,6 +40,20 @@ public struct SnapshotApplyPlanner: Sendable {
         }
 
         return SnapshotApplyPlan(diff: diff, actions: actions)
+    }
+
+    private func informationalActions(section: SnapshotSectionDiff) -> [PlannedAction] {
+        guard section.items.contains(where: { $0.status != .matching }) else {
+            return []
+        }
+
+        return [
+            PlannedAction(
+                providerIdentifier: section.identifier,
+                kind: .skip,
+                summary: "\(section.displayName) metadata is informational and is not applied."
+            )
+        ]
     }
 
     private func plannedAction(section: SnapshotSectionDiff, item: SnapshotItemDiff) -> PlannedAction? {
