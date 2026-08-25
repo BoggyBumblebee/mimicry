@@ -65,11 +65,10 @@ At each and every completed step, phase, or meaningful implementation slice, upd
 
 - what was completed
 - the completion date
-- the commit SHA, once available
 - the validation performed
 - any limitations, follow-up work, or intentionally deferred behavior
 
-The completion log should stay concise and now lives in [Docs/COMPLETION-LOG.md](Docs/COMPLETION-LOG.md). Detailed technical documentation lives in `Docs/`, and the README remains the visible project map.
+The completion log should stay concise and now lives in [Docs/COMPLETION-LOG.md](Docs/COMPLETION-LOG.md). It intentionally does not duplicate Git commit SHAs; Git remains the source of truth for exact revision history. Detailed technical documentation lives in `Docs/`, and the README remains the visible project map.
 
 ## Product Goal
 
