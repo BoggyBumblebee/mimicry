@@ -48,6 +48,170 @@ final class MimicryAppContentTests: XCTestCase {
         XCTAssertGreaterThan(host.fittingSize.height, 0)
     }
 
+    func testPackageReviewStateBranchesRender() {
+        assertRenders(PackageReviewView(snapshotState: .running, packageState: .idle))
+        assertRenders(PackageReviewView(snapshotState: .failed("Snapshot failed"), packageState: .idle))
+        assertRenders(PackageReviewView(snapshotState: .idle, packageState: .idle))
+        assertRenders(PackageReviewView(snapshotState: .idle, packageState: .running))
+        assertRenders(PackageReviewView(
+            snapshotState: .idle,
+            packageState: .succeeded(AppPackageSummary(package: Self.samplePackage()))
+        ))
+        assertRenders(PackageReviewView(snapshotState: .idle, packageState: .failed("Package failed")))
+    }
+
+    func testCompareResultStateBranchesRender() {
+        assertRenders(CompareResultView(state: .idle))
+        assertRenders(CompareResultView(state: .running))
+        assertRenders(CompareResultView(state: .succeeded(Self.sampleCompareSummary())))
+        assertRenders(CompareResultView(state: .failed("Compare failed")))
+    }
+
+    func testApplyResultStateBranchesRender() {
+        assertRenders(ApplyPlanResultView(state: .idle))
+        assertRenders(ApplyPlanResultView(state: .running))
+        assertRenders(ApplyPlanResultView(state: .succeeded(Self.sampleApplyPlanSummary())))
+        assertRenders(ApplyPlanResultView(state: .failed("Dry run failed")))
+    }
+
+    func testBrowserBookmarkExportStateBranchesRender() {
+        assertRenders(BrowserBookmarkExportResultView(state: .idle))
+        assertRenders(BrowserBookmarkExportResultView(state: .running))
+        assertRenders(BrowserBookmarkExportResultView(state: .succeeded(Self.sampleBrowserBookmarkExportSummary())))
+        assertRenders(BrowserBookmarkExportResultView(state: .failed("Browser export failed")))
+    }
+
+    func testConfirmedApplyStateBranchesRender() {
+        assertRenders(ConfirmedApplyResultView(state: .idle, canApply: false))
+        assertRenders(ConfirmedApplyResultView(state: .idle, canApply: true))
+        assertRenders(ConfirmedApplyResultView(state: .running, canApply: true))
+        assertRenders(ConfirmedApplyResultView(state: .succeeded(Self.sampleConfirmedApplySummary()), canApply: true))
+        assertRenders(ConfirmedApplyResultView(state: .failed("Confirmed apply failed"), canApply: true))
+    }
+
+    func testAuditLogExportStateBranchesRender() {
+        let entries = Self.sampleAuditEntries(count: 5)
+
+        assertRenders(AuditLogExportResultView(state: .idle, entries: []))
+        assertRenders(AuditLogExportResultView(state: .idle, entries: entries))
+        assertRenders(AuditLogExportResultView(state: .running, entries: entries))
+        assertRenders(AuditLogExportResultView(
+            state: .succeeded(AppAuditExportSummary(outputURL: URL(fileURLWithPath: "/tmp/audit.json"), entryCount: entries.count)),
+            entries: entries
+        ))
+        assertRenders(AuditLogExportResultView(state: .failed("Audit export failed"), entries: entries))
+    }
+
+    func testDiagnosticsStateBranchesRender() {
+        assertRenders(DiagnosticsResultView(state: .idle))
+        assertRenders(DiagnosticsResultView(state: .running))
+        assertRenders(DiagnosticsResultView(state: .succeeded(AppDiagnosticsSummary(capabilities: Self.sampleCapabilities))))
+        assertRenders(DiagnosticsResultView(state: .failed("Diagnostics failed")))
+    }
+
+    func testWorkflowDetailSectionsRenderImportantStates() async {
+        let loadedModel = Self.makeModel()
+        await loadedModel.openPackage(at: URL(fileURLWithPath: "/tmp/opened.mimicry"))
+        await loadedModel.compareCurrentPackage()
+        await loadedModel.planApplyForCurrentPackage()
+        await loadedModel.confirmedApplyForCurrentPackage()
+        await loadedModel.exportBrowserBookmarksForCurrentPackage(to: URL(fileURLWithPath: "/tmp/bookmarks.html"))
+        await loadedModel.refreshDiagnostics()
+        loadedModel.exportAuditLog(to: URL(fileURLWithPath: "/tmp/audit.json"))
+
+        for section in AppSection.allCases {
+            assertRenders(DetailView(section: section, model: loadedModel), section.title)
+        }
+    }
+
+    func testDisplayHelpersMapUserVisibleStatus() {
+        let safe = PackageItemDisplay(item: PackageItemSummary(item: SnapshotItem(key: "safe", value: .bool(true))))
+        let review = PackageItemDisplay(item: PackageItemSummary(item: SnapshotItem(
+            key: "review",
+            value: .string("check"),
+            classification: .userMustReview
+        )))
+        let excluded = PackageItemDisplay(item: PackageItemSummary(item: SnapshotItem(
+            key: "excluded",
+            value: .string("redacted"),
+            classification: .excluded
+        )))
+        let unsupported = PackageItemDisplay(item: PackageItemSummary(item: SnapshotItem(
+            key: "unsupported",
+            value: .absent,
+            classification: .unsupported
+        )))
+        let informational = PackageItemDisplay(item: PackageItemSummary(
+            item: SnapshotItem(key: "hostname", value: .string("source-mac"), classification: .machineSpecific),
+            sectionIdentifier: "environment"
+        ))
+
+        XCTAssertEqual(safe, PackageItemDisplay(
+            iconName: "checkmark.circle",
+            tint: .green,
+            statusLabel: "Safe Configuration",
+            detailLabel: "Universal"
+        ))
+        XCTAssertEqual(review.iconName, "person.crop.circle.badge.exclamationmark")
+        XCTAssertEqual(review.tint, .orange)
+        XCTAssertEqual(excluded.iconName, "forward.end.circle")
+        XCTAssertEqual(excluded.tint, .secondary)
+        XCTAssertEqual(unsupported.iconName, "xmark.octagon")
+        XCTAssertEqual(unsupported.tint, .red)
+        XCTAssertEqual(informational.iconName, "info.circle")
+        XCTAssertEqual(informational.tint, .blue)
+        XCTAssertEqual(informational.statusLabel, "Not Applied")
+        XCTAssertEqual(informational.detailLabel, "Machine Specific, Universal")
+    }
+
+    func testAuditAndApplyDisplayHelpersMapStatuses() {
+        XCTAssertEqual(
+            AuditLogEntryDisplay(entry: Self.sampleAuditEntry(status: "success")),
+            AuditLogEntryDisplay(iconName: "checkmark.circle", tint: .green)
+        )
+        XCTAssertEqual(
+            AuditLogEntryDisplay(entry: Self.sampleAuditEntry(status: "blocked")),
+            AuditLogEntryDisplay(iconName: "exclamationmark.triangle", tint: .orange)
+        )
+        XCTAssertEqual(
+            AuditLogEntryDisplay(entry: Self.sampleAuditEntry(status: "failed")),
+            AuditLogEntryDisplay(iconName: "xmark.octagon", tint: .red)
+        )
+        XCTAssertEqual(
+            AuditLogEntryDisplay(entry: Self.sampleAuditEntry(status: "unknown")),
+            AuditLogEntryDisplay(iconName: "info.circle", tint: .secondary)
+        )
+
+        let successResult = AppApplyResultSummary(result: ApplyResult(
+            actionID: UUID(uuidString: "00000000-0000-0000-0000-000000000101")!,
+            status: .success,
+            message: "Applied."
+        ))
+        let warningResult = AppApplyResultSummary(result: ApplyResult(
+            actionID: UUID(uuidString: "00000000-0000-0000-0000-000000000102")!,
+            status: .warning,
+            message: "Review."
+        ))
+
+        XCTAssertEqual(ApplyResultDisplay(result: successResult), ApplyResultDisplay(iconName: "checkmark.circle", tint: .green))
+        XCTAssertEqual(ApplyResultDisplay(result: warningResult), ApplyResultDisplay(iconName: "exclamationmark.triangle", tint: .orange))
+    }
+
+    private func assertRenders<V: View>(
+        _ view: V,
+        _ label: String = "",
+        file: StaticString = #filePath,
+        line: UInt = #line
+    ) {
+        let host = NSHostingView(rootView: view)
+        host.frame = CGRect(x: 0, y: 0, width: 900, height: 720)
+
+        host.layoutSubtreeIfNeeded()
+
+        XCTAssertGreaterThan(host.fittingSize.width, 0, label, file: file, line: line)
+        XCTAssertGreaterThan(host.fittingSize.height, 0, label, file: file, line: line)
+    }
+
     func testSectionsCoverPrimaryWorkflows() {
         XCTAssertEqual(AppSection.allCases.map(\.title), [
             "Snapshot",
@@ -942,6 +1106,24 @@ final class MimicryAppContentTests: XCTestCase {
                     skippedUnavailableSourceCount: 1
                 )
             )
+        )
+    }
+
+    nonisolated private static func sampleAuditEntries(count: Int) -> [AppAuditLogEntry] {
+        (0..<count).map { index in
+            sampleAuditEntry(status: index.isMultiple(of: 2) ? "success" : "warning")
+        }
+    }
+
+    nonisolated private static func sampleAuditEntry(status: String) -> AppAuditLogEntry {
+        AppAuditLogEntry(
+            operation: .openPackage,
+            status: status,
+            packageURL: URL(fileURLWithPath: "/tmp/opened.mimicry"),
+            outputURL: nil,
+            backupURL: nil,
+            message: "Opened and validated package.",
+            metrics: ["items": 2]
         )
     }
 

@@ -613,7 +613,7 @@ private struct KeyValueList: View {
     }
 }
 
-private struct PackageReviewView: View {
+struct PackageReviewView: View {
     var snapshotState: AppCommandState<AppSnapshotSummary>
     var packageState: AppCommandState<AppPackageSummary>
 
@@ -642,7 +642,7 @@ private struct PackageReviewView: View {
     }
 }
 
-private struct PackageInspectView: View {
+struct PackageInspectView: View {
     var state: AppCommandState<AppPackageSummary>
 
     var body: some View {
@@ -794,77 +794,100 @@ private struct PackageItemRow: View {
     var item: PackageItemSummary
 
     var body: some View {
+        let display = PackageItemDisplay(item: item)
+
         HStack(alignment: .top, spacing: 10) {
-            Image(systemName: itemIcon)
+            Image(systemName: display.iconName)
                 .frame(width: 22)
-                .foregroundStyle(itemColor)
+                .foregroundStyle(display.tint.color)
             VStack(alignment: .leading, spacing: 2) {
                 HStack(spacing: 8) {
                     Text(item.key)
                         .font(.caption.weight(.semibold))
-                    Text(statusLabel)
+                    Text(display.statusLabel)
                         .font(.caption)
-                        .foregroundStyle(itemColor)
+                        .foregroundStyle(display.tint.color)
                 }
                 Text(item.value)
                     .font(.caption)
                     .foregroundStyle(.secondary)
                     .lineLimit(2)
                     .truncationMode(.middle)
-                Text(detailLabel)
+                Text(display.detailLabel)
                     .font(.caption2)
                     .foregroundStyle(.tertiary)
             }
             Spacer()
         }
     }
+}
 
-    private var itemIcon: String {
+struct PackageItemDisplay: Equatable {
+    var iconName: String
+    var tint: AppDisplayTint
+    var statusLabel: String
+    var detailLabel: String
+
+    init(iconName: String, tint: AppDisplayTint, statusLabel: String, detailLabel: String) {
+        self.iconName = iconName
+        self.tint = tint
+        self.statusLabel = statusLabel
+        self.detailLabel = detailLabel
+    }
+
+    init(item: PackageItemSummary) {
         if item.isInformationalOnly {
-            return "info.circle"
+            iconName = "info.circle"
+            tint = .blue
+            statusLabel = "Not Applied"
+            detailLabel = "\(item.classification), \(item.applicability)"
+            return
         }
 
         switch item.classification {
         case "Safe Configuration":
-            return "checkmark.circle"
+            iconName = "checkmark.circle"
+            tint = .green
         case "Unsupported":
-            return "xmark.octagon"
+            iconName = "xmark.octagon"
+            tint = .red
         case "Excluded":
-            return "forward.end.circle"
+            iconName = "forward.end.circle"
+            tint = .secondary
         default:
-            return "person.crop.circle.badge.exclamationmark"
-        }
-    }
-
-    private var itemColor: Color {
-        if item.isInformationalOnly {
-            return .blue
+            iconName = "person.crop.circle.badge.exclamationmark"
+            tint = .orange
         }
 
-        switch item.classification {
-        case "Safe Configuration":
-            return .green
-        case "Unsupported":
-            return .red
-        case "Excluded":
-            return .secondary
-        default:
-            return .orange
-        }
-    }
-
-    private var statusLabel: String {
-        item.isInformationalOnly ? "Not Applied" : item.classification
-    }
-
-    private var detailLabel: String {
-        item.isInformationalOnly
-            ? "\(item.classification), \(item.applicability)"
-            : item.applicability
+        statusLabel = item.classification
+        detailLabel = item.applicability
     }
 }
 
-private struct CompareResultView: View {
+enum AppDisplayTint: Equatable {
+    case green
+    case red
+    case secondary
+    case orange
+    case blue
+
+    var color: Color {
+        switch self {
+        case .green:
+            return .green
+        case .red:
+            return .red
+        case .secondary:
+            return .secondary
+        case .orange:
+            return .orange
+        case .blue:
+            return .blue
+        }
+    }
+}
+
+struct CompareResultView: View {
     var state: AppCommandState<AppCompareSummary>
 
     var body: some View {
@@ -962,7 +985,7 @@ private struct CompareSectionRow: View {
     }
 }
 
-private struct ApplyPlanResultView: View {
+struct ApplyPlanResultView: View {
     var state: AppCommandState<AppApplyPlanSummary>
 
     var body: some View {
@@ -1101,7 +1124,7 @@ private struct ApplyActionRow: View {
     }
 }
 
-private struct BrowserBookmarkExportResultView: View {
+struct BrowserBookmarkExportResultView: View {
     var state: AppCommandState<AppBrowserBookmarkExportSummary>
 
     var body: some View {
@@ -1138,7 +1161,7 @@ private struct BrowserBookmarkExportResultView: View {
     }
 }
 
-private struct ConfirmedApplyResultView: View {
+struct ConfirmedApplyResultView: View {
     var state: AppCommandState<AppConfirmedApplySummary>
     var canApply: Bool
 
@@ -1192,7 +1215,7 @@ private struct ConfirmedApplyResultView: View {
     }
 }
 
-private struct AuditLogExportResultView: View {
+struct AuditLogExportResultView: View {
     var state: AppCommandState<AppAuditExportSummary>
     var entries: [AppAuditLogEntry]
 
@@ -1253,17 +1276,19 @@ private struct AuditLogRow: View {
     var entry: AppAuditLogEntry
 
     var body: some View {
+        let display = AuditLogEntryDisplay(entry: entry)
+
         HStack(alignment: .top, spacing: 10) {
-            Image(systemName: iconName)
+            Image(systemName: display.iconName)
                 .frame(width: 22)
-                .foregroundStyle(iconColor)
+                .foregroundStyle(display.tint.color)
             VStack(alignment: .leading, spacing: 2) {
                 HStack(spacing: 8) {
                     Text(entry.operation.displayName)
                         .font(.subheadline.weight(.semibold))
                     Text(entry.status.capitalized)
                         .font(.caption.weight(.semibold))
-                        .foregroundStyle(iconColor)
+                        .foregroundStyle(display.tint.color)
                 }
                 Text(entry.message)
                     .font(.caption)
@@ -1280,30 +1305,31 @@ private struct AuditLogRow: View {
             Spacer()
         }
     }
+}
 
-    private var iconName: String {
-        switch entry.status {
-        case "success":
-            "checkmark.circle"
-        case "blocked", "warning":
-            "exclamationmark.triangle"
-        case "failed":
-            "xmark.octagon"
-        default:
-            "info.circle"
-        }
+struct AuditLogEntryDisplay: Equatable {
+    var iconName: String
+    var tint: AppDisplayTint
+
+    init(iconName: String, tint: AppDisplayTint) {
+        self.iconName = iconName
+        self.tint = tint
     }
 
-    private var iconColor: Color {
+    init(entry: AppAuditLogEntry) {
         switch entry.status {
         case "success":
-            .green
+            iconName = "checkmark.circle"
+            tint = .green
         case "blocked", "warning":
-            .orange
+            iconName = "exclamationmark.triangle"
+            tint = .orange
         case "failed":
-            .red
+            iconName = "xmark.octagon"
+            tint = .red
         default:
-            .secondary
+            iconName = "info.circle"
+            tint = .secondary
         }
     }
 }
@@ -1312,10 +1338,12 @@ private struct ApplyResultRow: View {
     var result: AppApplyResultSummary
 
     var body: some View {
+        let display = ApplyResultDisplay(result: result)
+
         HStack(alignment: .top, spacing: 10) {
-            Image(systemName: result.status == "success" ? "checkmark.circle" : "exclamationmark.triangle")
+            Image(systemName: display.iconName)
                 .frame(width: 22)
-                .foregroundStyle(result.status == "success" ? .green : .orange)
+                .foregroundStyle(display.tint.color)
             VStack(alignment: .leading, spacing: 2) {
                 Text(result.status.capitalized)
                     .font(.subheadline.weight(.semibold))
@@ -1329,7 +1357,27 @@ private struct ApplyResultRow: View {
     }
 }
 
-private struct DiagnosticsResultView: View {
+struct ApplyResultDisplay: Equatable {
+    var iconName: String
+    var tint: AppDisplayTint
+
+    init(iconName: String, tint: AppDisplayTint) {
+        self.iconName = iconName
+        self.tint = tint
+    }
+
+    init(result: AppApplyResultSummary) {
+        if result.status == "success" {
+            iconName = "checkmark.circle"
+            tint = .green
+        } else {
+            iconName = "exclamationmark.triangle"
+            tint = .orange
+        }
+    }
+}
+
+struct DiagnosticsResultView: View {
     var state: AppCommandState<AppDiagnosticsSummary>
 
     var body: some View {
