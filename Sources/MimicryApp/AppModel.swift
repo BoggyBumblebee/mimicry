@@ -467,7 +467,8 @@ struct AppPackageSummary: Equatable, Sendable {
 }
 
 struct PackageSectionSummary: Equatable, Sendable, Identifiable {
-    var id: String { name }
+    var id: String { identifier }
+    var identifier: String
     var name: String
     var itemCount: Int
     var warningCount: Int
@@ -475,12 +476,14 @@ struct PackageSectionSummary: Equatable, Sendable, Identifiable {
     var warnings: [PackageWarningSummary]
 
     init(
+        identifier: String,
         name: String,
         itemCount: Int,
         warningCount: Int,
         items: [PackageItemSummary] = [],
         warnings: [PackageWarningSummary] = []
     ) {
+        self.identifier = identifier
         self.name = name
         self.itemCount = itemCount
         self.warningCount = warningCount
@@ -490,6 +493,7 @@ struct PackageSectionSummary: Equatable, Sendable, Identifiable {
 
     init(section: SnapshotSection) {
         self.init(
+            identifier: section.identifier,
             name: section.displayName,
             itemCount: section.items.count,
             warningCount: section.warnings.count,
@@ -497,6 +501,42 @@ struct PackageSectionSummary: Equatable, Sendable, Identifiable {
             warnings: section.warnings.map(PackageWarningSummary.init(warning:))
         )
     }
+
+    var homebrewItemGroups: [PackageItemGroupSummary] {
+        guard identifier == "homebrew" else {
+            return []
+        }
+
+        return [
+            PackageItemGroupSummary(
+                title: "Homebrew",
+                systemImage: "shippingbox",
+                items: items.filter { !$0.key.isHomebrewChildItem }
+            ),
+            PackageItemGroupSummary(
+                title: "Taps",
+                systemImage: "drop",
+                items: items.filter { $0.key.hasPrefix("homebrew.tap.") }
+            ),
+            PackageItemGroupSummary(
+                title: "Formulae",
+                systemImage: "terminal",
+                items: items.filter { $0.key.hasPrefix("homebrew.formula.") }
+            ),
+            PackageItemGroupSummary(
+                title: "Casks",
+                systemImage: "app.dashed",
+                items: items.filter { $0.key.hasPrefix("homebrew.cask.") }
+            )
+        ].filter { !$0.items.isEmpty }
+    }
+}
+
+struct PackageItemGroupSummary: Equatable, Sendable, Identifiable {
+    var id: String { title }
+    var title: String
+    var systemImage: String
+    var items: [PackageItemSummary]
 }
 
 struct PackageItemSummary: Equatable, Sendable, Identifiable {
@@ -513,6 +553,14 @@ struct PackageItemSummary: Equatable, Sendable, Identifiable {
         classification = item.classification.rawValue.readableIdentifier
         applicability = item.applicability.rawValue.readableIdentifier
         isInformationalOnly = sectionIdentifier == "environment"
+    }
+}
+
+private extension String {
+    var isHomebrewChildItem: Bool {
+        hasPrefix("homebrew.tap.")
+            || hasPrefix("homebrew.formula.")
+            || hasPrefix("homebrew.cask.")
     }
 }
 

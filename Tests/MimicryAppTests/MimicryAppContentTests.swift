@@ -80,6 +80,28 @@ final class MimicryAppContentTests: XCTestCase {
         XCTAssertFalse(providers.contains { $0.title == "Quality" })
     }
 
+    func testHomebrewPackageItemsAreGroupedForReview() {
+        let section = PackageSectionSummary(section: SnapshotSection(
+            identifier: "homebrew",
+            displayName: "Homebrew",
+            items: [
+                SnapshotItem(key: "homebrew.installed", value: .bool(true)),
+                SnapshotItem(key: "homebrew.prefix", value: .string("/opt/homebrew"), classification: .machineSpecific),
+                SnapshotItem(key: "homebrew.tap.homebrew/core", value: .string("homebrew/core")),
+                SnapshotItem(key: "homebrew.formula.git", value: .object(["name": "git", "version": "2.51.0"])),
+                SnapshotItem(key: "homebrew.cask.visual-studio-code", value: .object(["name": "visual-studio-code", "version": "1.102.3"]))
+            ]
+        ))
+
+        XCTAssertEqual(section.homebrewItemGroups.map(\.title), ["Homebrew", "Taps", "Formulae", "Casks"])
+        XCTAssertEqual(section.homebrewItemGroups.map { $0.items.map(\.key) }, [
+            ["homebrew.installed", "homebrew.prefix"],
+            ["homebrew.tap.homebrew/core"],
+            ["homebrew.formula.git"],
+            ["homebrew.cask.visual-studio-code"]
+        ])
+    }
+
     func testWorkflowStepsMatchTrustedLoop() {
         XCTAssertEqual(WorkflowStep.current.map(\.title), [
             "Snapshot: Capture",
@@ -204,21 +226,24 @@ final class MimicryAppContentTests: XCTestCase {
 
         await model.openPackage(at: URL(fileURLWithPath: "/tmp/opened.mimicry"))
 
-        let expected = AppPackageSummary(package: Self.samplePackage())
-        XCTAssertEqual(model.packageState, .succeeded(expected))
+        guard case let .succeeded(summary) = model.packageState else {
+            XCTFail("Expected opened package to succeed")
+            return
+        }
+
         XCTAssertEqual(model.recentPackages.map(\.name), ["opened.mimicry"])
-        XCTAssertEqual(expected.safeCount, 1)
-        XCTAssertEqual(expected.reviewCount, 3)
-        XCTAssertEqual(expected.excludedCount, 1)
-        XCTAssertEqual(expected.unsupportedCount, 1)
-        XCTAssertEqual(expected.compatibility.managedCount, 1)
-        XCTAssertEqual(expected.compatibility.unsupportedCount, 1)
-        XCTAssertEqual(expected.sections.map(\.name), ["Environment", "Browser"])
-        XCTAssertEqual(expected.sections.first?.warnings.first?.message, "Review environment")
-        XCTAssertEqual(expected.sections.first?.items.map(\.key), ["safe", "hostname", "review", "excluded"])
-        XCTAssertEqual(expected.sections.first?.items.first?.classification, "Safe Configuration")
-        XCTAssertEqual(expected.sections.first?.items.map(\.isInformationalOnly), [true, true, true, true])
-        XCTAssertEqual(expected.sections.last?.items.map(\.isInformationalOnly), [false, false])
+        XCTAssertEqual(summary.safeCount, 1)
+        XCTAssertEqual(summary.reviewCount, 3)
+        XCTAssertEqual(summary.excludedCount, 1)
+        XCTAssertEqual(summary.unsupportedCount, 1)
+        XCTAssertEqual(summary.compatibility.managedCount, 1)
+        XCTAssertEqual(summary.compatibility.unsupportedCount, 1)
+        XCTAssertEqual(summary.sections.map(\.name), ["Environment", "Browser"])
+        XCTAssertEqual(summary.sections.first?.warnings.first?.message, "Review environment")
+        XCTAssertEqual(summary.sections.first?.items.map(\.key), ["safe", "hostname", "review", "excluded"])
+        XCTAssertEqual(summary.sections.first?.items.first?.classification, "Safe Configuration")
+        XCTAssertEqual(summary.sections.first?.items.map(\.isInformationalOnly), [true, true, true, true])
+        XCTAssertEqual(summary.sections.last?.items.map(\.isInformationalOnly), [false, false])
     }
 
     func testOpenPackageReportsFailure() async {

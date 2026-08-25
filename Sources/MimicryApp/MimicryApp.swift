@@ -4,12 +4,15 @@ import SwiftUI
 
 @main
 struct MimicryApp: App {
+    @StateObject private var model = AppModel()
+
     var body: some Scene {
         WindowGroup {
-            RootView()
+            RootView(model: model)
         }
         .commands {
             SidebarCommands()
+            PackageCommands(model: model)
         }
 
         Settings {
@@ -19,11 +22,11 @@ struct MimicryApp: App {
 }
 
 struct RootView: View {
-    @StateObject private var model: AppModel
+    @ObservedObject private var model: AppModel
     @State private var selection: AppSection? = .dashboard
 
     init(model: AppModel = AppModel()) {
-        _model = StateObject(wrappedValue: model)
+        self.model = model
     }
 
     var body: some View {
@@ -34,13 +37,24 @@ struct RootView: View {
         }
         .frame(minWidth: 980, minHeight: 660)
         .toolbar {
-            ToolbarItemGroup(placement: .primaryAction) {
+            ToolbarItemGroup(placement: .automatic) {
                 Button {
                     selection = .snapshot
+                    PackageActions.createSnapshot(model: model)
                 } label: {
-                    Label("Snapshot", systemImage: "camera.viewfinder")
+                    Label("Create Snapshot", systemImage: "camera.viewfinder")
                 }
-                .help("Go to Snapshot")
+                .help("Create a .mimicry package")
+                .disabled(model.snapshotState.isRunning)
+
+                Button {
+                    selection = .snapshot
+                    PackageActions.openPackage(model: model)
+                } label: {
+                    Label("Open Package", systemImage: "folder")
+                }
+                .help("Open a .mimicry package")
+                .disabled(model.packageState.isRunning)
 
                 Button {
                     selection = .diagnostics
@@ -49,6 +63,54 @@ struct RootView: View {
                 }
                 .help("Go to Diagnostics")
             }
+        }
+    }
+}
+
+private struct PackageCommands: Commands {
+    @ObservedObject var model: AppModel
+
+    var body: some Commands {
+        CommandMenu("Package") {
+            Button {
+                PackageActions.createSnapshot(model: model)
+            } label: {
+                Label("Create Snapshot...", systemImage: "camera.viewfinder")
+            }
+            .keyboardShortcut("n", modifiers: [.command, .shift])
+            .disabled(model.snapshotState.isRunning)
+
+            Button {
+                PackageActions.openPackage(model: model)
+            } label: {
+                Label("Open Package...", systemImage: "folder")
+            }
+            .keyboardShortcut("o", modifiers: .command)
+            .disabled(model.packageState.isRunning)
+        }
+    }
+}
+
+private enum PackageActions {
+    @MainActor
+    static func createSnapshot(model: AppModel) {
+        guard let outputURL = SnapshotSavePanel.outputURL() else {
+            return
+        }
+
+        Task {
+            await model.createSnapshot(to: outputURL)
+        }
+    }
+
+    @MainActor
+    static func openPackage(model: AppModel) {
+        guard let packageURL = PackageOpenPanel.packageURL() else {
+            return
+        }
+
+        Task {
+            await model.openPackage(at: packageURL)
         }
     }
 }
@@ -159,45 +221,8 @@ private struct SnapshotView: View {
     @ObservedObject var model: AppModel
 
     var body: some View {
-        TwoColumnPanels {
-            ContentPanel(title: "Create or Open Package", systemImage: "camera.viewfinder") {
-                VStack(alignment: .leading, spacing: 14) {
-                    HStack(spacing: 10) {
-                        Button {
-                            guard let outputURL = SnapshotSavePanel.outputURL() else {
-                                return
-                            }
-                            Task {
-                                await model.createSnapshot(to: outputURL)
-                            }
-                        } label: {
-                            Label("Create Snapshot...", systemImage: "camera.viewfinder")
-                        }
-                        .buttonStyle(.borderedProminent)
-                        .disabled(model.snapshotState.isRunning)
-
-                        Button {
-                            guard let packageURL = PackageOpenPanel.packageURL() else {
-                                return
-                            }
-                            Task {
-                                await model.openPackage(at: packageURL)
-                            }
-                        } label: {
-                            Label("Open Package...", systemImage: "folder")
-                        }
-                        .disabled(model.packageState.isRunning)
-                    }
-                }
-            }
-
-            ContentPanel(title: "Created Package", systemImage: "checkmark.seal") {
-                SnapshotResultView(state: model.snapshotState)
-            }
-
-            ContentPanel(title: "Open Package Review", systemImage: "doc.text.magnifyingglass") {
-                PackageInspectView(state: model.packageState)
-            }
+        ContentPanel(title: "Package Review", systemImage: "doc.text.magnifyingglass") {
+            PackageReviewView(snapshotState: model.snapshotState, packageState: model.packageState)
         }
     }
 }
@@ -578,39 +603,32 @@ private struct KeyValueList: View {
     }
 }
 
-private struct SnapshotResultView: View {
-    var state: AppCommandState<AppSnapshotSummary>
+private struct PackageReviewView: View {
+    var snapshotState: AppCommandState<AppSnapshotSummary>
+    var packageState: AppCommandState<AppPackageSummary>
 
     var body: some View {
-        switch state {
-        case .idle:
-            KeyValueList(rows: [
-                KeyValueRow(label: "Format", value: ".mimicry package"),
-                KeyValueRow(label: "Checksums", value: "Manifest backed"),
-                KeyValueRow(label: "Secrets", value: "Redacted or excluded"),
-                KeyValueRow(label: "Browser URLs", value: "Queries and fragments removed")
-            ])
-        case .running:
-            ProgressRow(title: "Creating snapshot", detail: "No system settings are being changed.")
-        case let .succeeded(summary):
-            VStack(alignment: .leading, spacing: 14) {
-                KeyValueList(rows: [
-                    KeyValueRow(label: "Package", value: summary.url.lastPathComponent),
-                    KeyValueRow(label: "Sections", value: "\(summary.sectionCount)"),
-                    KeyValueRow(label: "Items", value: "\(summary.itemCount)"),
-                    KeyValueRow(label: "Warnings", value: "\(summary.warningCount)"),
-                    KeyValueRow(label: "Source", value: summary.source)
-                ])
-
-                Button {
-                    NSWorkspace.shared.activateFileViewerSelecting([summary.url])
-                } label: {
-                    Label("Reveal", systemImage: "folder")
-                }
+        VStack(alignment: .leading, spacing: 14) {
+            if snapshotState.isRunning {
+                ProgressRow(title: "Creating snapshot", detail: "No system settings are being changed.")
+            } else if shouldShowSnapshotFailure, case let .failed(message) = snapshotState {
+                FailureRow(title: "Snapshot failed", detail: message)
+            } else {
+                PackageInspectView(state: packageState)
             }
-        case let .failed(message):
-            FailureRow(title: "Snapshot failed", detail: message)
         }
+    }
+
+    private var shouldShowSnapshotFailure: Bool {
+        guard case .failed = snapshotState else {
+            return false
+        }
+
+        if case .idle = packageState {
+            return true
+        }
+
+        return false
     }
 }
 
@@ -679,7 +697,13 @@ private struct PackageSectionDisclosure: View {
                     }
                 }
 
-                if !section.items.isEmpty {
+                if !section.homebrewItemGroups.isEmpty {
+                    VStack(alignment: .leading, spacing: 8) {
+                        ForEach(section.homebrewItemGroups) { group in
+                            PackageItemGroupDisclosure(group: group)
+                        }
+                    }
+                } else if !section.items.isEmpty {
                     VStack(alignment: .leading, spacing: 8) {
                         ForEach(section.items) { item in
                             PackageItemRow(item: item)
@@ -702,6 +726,33 @@ private struct PackageSectionDisclosure: View {
                     Text("\(section.warningCount) warnings")
                         .foregroundStyle(.orange)
                 }
+            }
+            .font(.subheadline)
+        }
+    }
+}
+
+private struct PackageItemGroupDisclosure: View {
+    var group: PackageItemGroupSummary
+
+    var body: some View {
+        DisclosureGroup {
+            VStack(alignment: .leading, spacing: 8) {
+                ForEach(group.items) { item in
+                    PackageItemRow(item: item)
+                }
+            }
+            .padding(.top, 8)
+            .padding(.leading, 4)
+        } label: {
+            HStack(spacing: 10) {
+                Image(systemName: group.systemImage)
+                    .frame(width: 22)
+                    .foregroundStyle(.secondary)
+                Text(group.title)
+                Spacer()
+                Text("\(group.items.count) items")
+                    .foregroundStyle(.secondary)
             }
             .font(.subheadline)
         }
@@ -1537,7 +1588,7 @@ enum AppSection: String, CaseIterable, Identifiable {
         case .dashboard:
             "Workflow and provider coverage."
         case .snapshot:
-            "Capture the reviewable parts of this Mac."
+            "Review the open package contents."
         case .apply:
             "Plan changes first, then apply only the approved safe slice."
         case .compare:
