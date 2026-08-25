@@ -77,7 +77,7 @@ struct DetailView: View {
 
                 switch section {
                 case .dashboard:
-                    DashboardView(model: model)
+                    DashboardView()
                 case .snapshot:
                     SnapshotView(model: model)
                 case .apply:
@@ -123,35 +123,28 @@ private struct SectionHeader: View {
 }
 
 private struct DashboardView: View {
-    @ObservedObject var model: AppModel
-    private let summaries = CapabilitySummary.current
+    private let providers = ProviderSummary.current
     private let workflow = WorkflowStep.current
 
     var body: some View {
-        VStack(alignment: .leading, spacing: 20) {
-            StatusBand(
-                title: "Phase 4 Complete",
-                detail: "Review-first browser capture, dry-run planning, and HTML handoff are in place. The only confirmed mutation path remains Finder-safe preferences."
-            )
-
-            LazyVGrid(columns: [GridItem(.adaptive(minimum: 220), spacing: 14)], spacing: 14) {
-                ForEach(summaries) { summary in
-                    MetricCard(summary: summary)
-                }
-                MetricCard(summary: CapabilitySummary(
-                    title: "Packages",
-                    status: "\(model.recentPackages.count) recent",
-                    detail: model.recentPackages.first?.name ?? "Create a snapshot to start package history.",
-                    systemImage: "archivebox",
-                    tint: .teal
-                ))
-            }
-
+        VStack(alignment: .leading, spacing: 16) {
             ContentPanel(title: "Workflow", systemImage: "point.topleft.down.curvedto.point.bottomright.up") {
                 VStack(spacing: 0) {
                     ForEach(workflow) { step in
                         WorkflowRow(step: step)
                         if step.id != workflow.last?.id {
+                            Divider()
+                                .padding(.leading, 36)
+                        }
+                    }
+                }
+            }
+
+            ContentPanel(title: "Providers", systemImage: "square.stack.3d.up") {
+                VStack(spacing: 0) {
+                    ForEach(providers) { provider in
+                        ProviderRow(provider: provider)
+                        if provider.id != providers.last?.id {
                             Divider()
                                 .padding(.leading, 36)
                         }
@@ -167,7 +160,7 @@ private struct SnapshotView: View {
 
     var body: some View {
         TwoColumnPanels {
-            ContentPanel(title: "Capture", systemImage: "camera.viewfinder") {
+            ContentPanel(title: "Create or Open Package", systemImage: "camera.viewfinder") {
                 VStack(alignment: .leading, spacing: 14) {
                     HStack(spacing: 10) {
                         Button {
@@ -195,24 +188,14 @@ private struct SnapshotView: View {
                         }
                         .disabled(model.packageState.isRunning)
                     }
-
-                    ActionList(items: [
-                        ActionItem(title: "Environment", status: "Captured", systemImage: "macbook"),
-                        ActionItem(title: "Homebrew", status: "Captured", systemImage: "shippingbox"),
-                        ActionItem(title: "App Store", status: "Captured", systemImage: "bag"),
-                        ActionItem(title: "Finder", status: "Captured", systemImage: "folder"),
-                        ActionItem(title: "Terminal", status: "Reviewed", systemImage: "terminal"),
-                        ActionItem(title: "iCloud", status: "User action", systemImage: "icloud"),
-                        ActionItem(title: "Browsers", status: "Review only", systemImage: "safari")
-                    ])
                 }
             }
 
-            ContentPanel(title: "Snapshot Result", systemImage: "checkmark.seal") {
+            ContentPanel(title: "Created Package", systemImage: "checkmark.seal") {
                 SnapshotResultView(state: model.snapshotState)
             }
 
-            ContentPanel(title: "Package Review", systemImage: "doc.text.magnifyingglass") {
+            ContentPanel(title: "Open Package Review", systemImage: "doc.text.magnifyingglass") {
                 PackageInspectView(state: model.packageState)
             }
         }
@@ -438,14 +421,6 @@ private struct HistoryView: View {
                     AuditLogExportResultView(state: model.auditExportState, entries: model.auditLog)
                 }
             }
-
-            ContentPanel(title: "Recent Milestones", systemImage: "clock.arrow.circlepath") {
-                VStack(alignment: .leading, spacing: 12) {
-                    MilestoneRow(title: "GUI polish", detail: "Dashboard shell and app tests", commit: "cf67945")
-                    MilestoneRow(title: "Phase 4 closeout", detail: "Browser provider phase complete", commit: "92ae7f2")
-                    MilestoneRow(title: "Browser dry-run handoff", detail: "Apply preview links to export command", commit: "4f499d5")
-                }
-            }
         }
     }
 }
@@ -468,15 +443,6 @@ private struct DiagnosticsView: View {
 
                     DiagnosticsResultView(state: model.diagnosticsState)
                 }
-            }
-
-            ContentPanel(title: "Quality", systemImage: "checkmark.seal") {
-                KeyValueList(rows: [
-                    KeyValueRow(label: "CI", value: "Passing"),
-                    KeyValueRow(label: "SonarCloud", value: "Passing"),
-                    KeyValueRow(label: "Open issues", value: "0"),
-                    KeyValueRow(label: "Coverage", value: "93.7%")
-                ])
             }
         }
     }
@@ -552,37 +518,6 @@ private struct ContentPanel<Content: View>: View {
     }
 }
 
-private struct MetricCard: View {
-    var summary: CapabilitySummary
-
-    var body: some View {
-        VStack(alignment: .leading, spacing: 10) {
-            HStack {
-                Label(summary.title, systemImage: summary.systemImage)
-                    .font(.headline)
-                Spacer()
-                Text(summary.status)
-                    .font(.caption.weight(.semibold))
-                    .padding(.horizontal, 8)
-                    .padding(.vertical, 4)
-                    .background(summary.tint.opacity(0.16), in: Capsule())
-                    .foregroundStyle(summary.tint)
-            }
-
-            Text(summary.detail)
-                .foregroundStyle(.secondary)
-                .fixedSize(horizontal: false, vertical: true)
-        }
-        .padding(16)
-        .frame(maxWidth: .infinity, minHeight: 124, alignment: .topLeading)
-        .background(.background, in: RoundedRectangle(cornerRadius: 8))
-        .overlay {
-            RoundedRectangle(cornerRadius: 8)
-                .stroke(.separator, lineWidth: 1)
-        }
-    }
-}
-
 private struct WorkflowRow: View {
     var step: WorkflowStep
 
@@ -606,24 +541,27 @@ private struct WorkflowRow: View {
     }
 }
 
-private struct ActionList: View {
-    var items: [ActionItem]
+private struct ProviderRow: View {
+    var provider: ProviderSummary
 
     var body: some View {
-        VStack(spacing: 10) {
-            ForEach(items) { item in
-                HStack(spacing: 10) {
-                    Image(systemName: item.systemImage)
-                        .frame(width: 22)
-                        .foregroundStyle(.secondary)
-                    Text(item.title)
-                    Spacer()
-                    Text(item.status)
-                        .foregroundStyle(.secondary)
-                }
-                .font(.subheadline)
+        HStack(alignment: .top, spacing: 12) {
+            Image(systemName: provider.systemImage)
+                .frame(width: 24)
+                .foregroundStyle(provider.tint)
+
+            VStack(alignment: .leading, spacing: 3) {
+                Text(provider.title)
+                    .font(.subheadline.weight(.semibold))
+                Text(provider.detail)
+                    .font(.subheadline)
+                    .foregroundStyle(.secondary)
+                    .fixedSize(horizontal: false, vertical: true)
             }
+
+            Spacer()
         }
+        .padding(.vertical, 10)
     }
 }
 
@@ -710,7 +648,7 @@ private struct PackageInspectView: View {
                     Divider()
                     VStack(alignment: .leading, spacing: 10) {
                         ForEach(summary.sections.prefix(8)) { section in
-                            PackageSectionRow(section: section)
+                            PackageSectionDisclosure(section: section)
                         }
                     }
                 }
@@ -727,24 +665,123 @@ private struct PackageInspectView: View {
     }
 }
 
-private struct PackageSectionRow: View {
+private struct PackageSectionDisclosure: View {
     var section: PackageSectionSummary
 
     var body: some View {
-        HStack(spacing: 10) {
-            Image(systemName: "rectangle.stack")
-                .frame(width: 22)
-                .foregroundStyle(.secondary)
-            Text(section.name)
-            Spacer()
-            Text("\(section.itemCount) items")
-                .foregroundStyle(.secondary)
-            if section.warningCount > 0 {
-                Text("\(section.warningCount) warnings")
-                    .foregroundStyle(.orange)
+        DisclosureGroup {
+            VStack(alignment: .leading, spacing: 12) {
+                if !section.warnings.isEmpty {
+                    VStack(alignment: .leading, spacing: 8) {
+                        ForEach(section.warnings) { warning in
+                            PackageWarningRow(warning: warning)
+                        }
+                    }
+                }
+
+                if !section.items.isEmpty {
+                    VStack(alignment: .leading, spacing: 8) {
+                        ForEach(section.items) { item in
+                            PackageItemRow(item: item)
+                        }
+                    }
+                }
             }
+            .padding(.top, 8)
+            .padding(.leading, 4)
+        } label: {
+            HStack(spacing: 10) {
+                Image(systemName: "rectangle.stack")
+                    .frame(width: 22)
+                    .foregroundStyle(.secondary)
+                Text(section.name)
+                Spacer()
+                Text("\(section.itemCount) items")
+                    .foregroundStyle(.secondary)
+                if section.warningCount > 0 {
+                    Text("\(section.warningCount) warnings")
+                        .foregroundStyle(.orange)
+                }
+            }
+            .font(.subheadline)
         }
-        .font(.subheadline)
+    }
+}
+
+private struct PackageWarningRow: View {
+    var warning: PackageWarningSummary
+
+    var body: some View {
+        HStack(alignment: .top, spacing: 10) {
+            Image(systemName: "exclamationmark.triangle")
+                .frame(width: 22)
+                .foregroundStyle(.orange)
+            VStack(alignment: .leading, spacing: 2) {
+                Text(warning.code)
+                    .font(.caption.weight(.semibold))
+                Text(warning.message)
+                    .font(.caption)
+                    .foregroundStyle(.secondary)
+                    .fixedSize(horizontal: false, vertical: true)
+            }
+            Spacer()
+        }
+    }
+}
+
+private struct PackageItemRow: View {
+    var item: PackageItemSummary
+
+    var body: some View {
+        HStack(alignment: .top, spacing: 10) {
+            Image(systemName: itemIcon)
+                .frame(width: 22)
+                .foregroundStyle(itemColor)
+            VStack(alignment: .leading, spacing: 2) {
+                HStack(spacing: 8) {
+                    Text(item.key)
+                        .font(.caption.weight(.semibold))
+                    Text(item.classification)
+                        .font(.caption)
+                        .foregroundStyle(itemColor)
+                }
+                Text(item.value)
+                    .font(.caption)
+                    .foregroundStyle(.secondary)
+                    .lineLimit(2)
+                    .truncationMode(.middle)
+                Text(item.applicability)
+                    .font(.caption2)
+                    .foregroundStyle(.tertiary)
+            }
+            Spacer()
+        }
+    }
+
+    private var itemIcon: String {
+        switch item.classification {
+        case "Safe Configuration":
+            "checkmark.circle"
+        case "Unsupported":
+            "xmark.octagon"
+        case "Excluded":
+            "forward.end.circle"
+        default:
+            "person.crop.circle.badge.exclamationmark"
+        }
+    }
+
+    private var itemColor: Color {
+        switch item.classification {
+        case "Safe Configuration":
+            .green
+        case "Unsupported":
+            .red
+        case "Excluded":
+            .secondary
+        default:
+            .orange
+        }
     }
 }
 
@@ -1384,31 +1421,6 @@ private enum PackageOpenPanel {
     }
 }
 
-private struct MilestoneRow: View {
-    var title: String
-    var detail: String
-    var commit: String
-
-    var body: some View {
-        HStack(alignment: .top, spacing: 12) {
-            Image(systemName: "checkmark.circle.fill")
-                .foregroundStyle(.green)
-                .padding(.top, 1)
-            VStack(alignment: .leading, spacing: 3) {
-                Text(title)
-                    .font(.subheadline.weight(.semibold))
-                Text(detail)
-                    .font(.subheadline)
-                    .foregroundStyle(.secondary)
-            }
-            Spacer()
-            Text(commit)
-                .font(.caption.monospaced())
-                .foregroundStyle(.secondary)
-        }
-    }
-}
-
 private enum SnapshotSavePanel {
     @MainActor
     static func outputURL() -> URL? {
@@ -1505,7 +1517,7 @@ enum AppSection: String, CaseIterable, Identifiable {
     var subtitle: String {
         switch self {
         case .dashboard:
-            "Current project state and trusted workflow."
+            "Workflow and provider coverage."
         case .snapshot:
             "Capture the reviewable parts of this Mac."
         case .apply:
@@ -1513,9 +1525,9 @@ enum AppSection: String, CaseIterable, Identifiable {
         case .compare:
             "Compare a package with the current Mac."
         case .history:
-            "Track completed milestones and package activity."
+            "Track package activity and audit exports."
         case .diagnostics:
-            "Check local tools, services, and quality signals."
+            "Check local tools and services."
         }
     }
 
@@ -1537,42 +1549,67 @@ enum AppSection: String, CaseIterable, Identifiable {
     }
 }
 
-struct CapabilitySummary: Identifiable {
+struct ProviderSummary: Identifiable {
     var id: String { title }
     var title: String
-    var status: String
     var detail: String
     var systemImage: String
     var tint: Color
 
     static let current = [
-        CapabilitySummary(
-            title: "Providers",
-            status: "9 ready",
-            detail: "Environment, Homebrew, App Store, Finder, Terminal, iCloud, Safari, Chrome, and Firefox.",
-            systemImage: "square.stack.3d.up",
+        ProviderSummary(
+            title: "Environment",
+            detail: "Records macOS version, architecture, hardware model, host, and local tool availability.",
+            systemImage: "macbook",
             tint: .blue
         ),
-        CapabilitySummary(
-            title: "Apply",
-            status: "Narrow",
-            detail: "Confirmed writes are limited to backed-up Finder boolean and string preferences.",
-            systemImage: "checkmark.shield",
+        ProviderSummary(
+            title: "Homebrew",
+            detail: "Captures installed formulae and casks for review before any install planning.",
+            systemImage: "shippingbox",
+            tint: .teal
+        ),
+        ProviderSummary(
+            title: "App Store",
+            detail: "Captures Mac App Store application inventory when the local `mas` tool is available.",
+            systemImage: "bag",
+            tint: .pink
+        ),
+        ProviderSummary(
+            title: "Finder",
+            detail: "Captures selected Finder preferences and is the only provider with a confirmed safe write path today.",
+            systemImage: "folder",
             tint: .green
         ),
-        CapabilitySummary(
-            title: "Browsers",
-            status: "Handoff",
-            detail: "Bookmarks are captured safely and restored through a reviewable HTML import artifact.",
+        ProviderSummary(
+            title: "Terminal",
+            detail: "Captures shell and configuration-file metadata while redacting or excluding likely secrets.",
+            systemImage: "terminal",
+            tint: .secondary
+        ),
+        ProviderSummary(
+            title: "iCloud",
+            detail: "Reports local iCloud signals and marks account-specific settings for user review.",
+            systemImage: "icloud",
+            tint: .cyan
+        ),
+        ProviderSummary(
+            title: "Safari",
+            detail: "Captures bookmark structure for review and browser import handoff, without changing profiles.",
             systemImage: "safari",
             tint: .orange
         ),
-        CapabilitySummary(
-            title: "Quality",
-            status: "Green",
-            detail: "CI and SonarCloud are passing with zero open Sonar issues.",
-            systemImage: "checkmark.seal",
-            tint: .green
+        ProviderSummary(
+            title: "Chrome",
+            detail: "Captures bookmark metadata across Chrome profiles, redacting URL query and fragment details.",
+            systemImage: "globe",
+            tint: .red
+        ),
+        ProviderSummary(
+            title: "Firefox",
+            detail: "Captures bookmark metadata across Firefox profiles when profile databases are readable.",
+            systemImage: "flame",
+            tint: .purple
         )
     ]
 }
@@ -1586,14 +1623,14 @@ struct WorkflowStep: Identifiable {
 
     static let current = [
         WorkflowStep(
-            title: "Capture",
-            detail: "Create a package from safe, reviewable providers.",
+            title: "Snapshot: Capture",
+            detail: "Create a `.mimicry` package from the providers listed below.",
             systemImage: "camera.viewfinder",
             tint: .blue
         ),
         WorkflowStep(
-            title: "Inspect",
-            detail: "Review captured, excluded, warning, and user-action items.",
+            title: "Snapshot: Inspect",
+            detail: "Open the package review and expand sections to read items and warnings.",
             systemImage: "doc.text.magnifyingglass",
             tint: .purple
         ),
@@ -1604,25 +1641,18 @@ struct WorkflowStep: Identifiable {
             tint: .indigo
         ),
         WorkflowStep(
-            title: "Dry Run",
-            detail: "Group install, configure, skip, blocked, and review-required work.",
+            title: "Apply: Dry Run",
+            detail: "Group install, configure, skip, blocked, and review-required work before mutation.",
             systemImage: "list.bullet.rectangle",
             tint: .orange
         ),
         WorkflowStep(
-            title: "Apply",
+            title: "Apply: Confirm",
             detail: "Use explicit confirmation for the small Finder-safe write path.",
             systemImage: "checkmark.shield",
             tint: .green
         )
     ]
-}
-
-private struct ActionItem: Identifiable {
-    var id: String { title }
-    var title: String
-    var status: String
-    var systemImage: String
 }
 
 private struct KeyValueRow: Identifiable {

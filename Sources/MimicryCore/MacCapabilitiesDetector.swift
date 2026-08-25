@@ -177,14 +177,12 @@ public struct MacCapabilitiesDetector: Sendable {
     }
 
     private func detectHomebrew() async -> HomebrewCapability {
-        let whichResult = await run(paths.shellTools.which, ["brew"])
-        guard whichResult.exitCode == 0 else {
+        guard let command = await resolveHomebrew() else {
             return HomebrewCapability()
         }
 
-        let prefixResult = await run(paths.shellTools.env, ["brew", "--prefix"])
-        let versionResult = await run(paths.shellTools.env, ["brew", "--version"])
-        let prefix = prefixResult.exitCode == 0 ? prefixResult.standardOutput.trimmedNilIfEmpty : nil
+        let versionResult = await command.run(["--version"], runner: runner)
+        let prefix = command.prefixResult.standardOutput.trimmedNilIfEmpty
         let version = versionResult.exitCode == 0
             ? versionResult.standardOutput.split(separator: "\n").first.map(String.init)?.trimmedNilIfEmpty
             : nil
@@ -195,6 +193,33 @@ public struct MacCapabilitiesDetector: Sendable {
             version: version,
             architecture: homebrewArchitecture(prefix: prefix)
         )
+    }
+
+    private func resolveHomebrew() async -> ResolvedHomebrewCommand? {
+        let whichResult = await run(paths.shellTools.which, ["brew"])
+        if whichResult.exitCode == 0 {
+            let prefixResult = await run(paths.shellTools.env, ["brew", "--prefix"])
+            if prefixResult.exitCode == 0 {
+                return ResolvedHomebrewCommand(
+                    executable: paths.shellTools.env,
+                    argumentPrefix: ["brew"],
+                    prefixResult: prefixResult
+                )
+            }
+        }
+
+        for candidate in paths.homebrewPrefixes.executableCandidates {
+            let prefixResult = await run(candidate, ["--prefix"])
+            if prefixResult.exitCode == 0 {
+                return ResolvedHomebrewCommand(
+                    executable: candidate,
+                    argumentPrefix: [],
+                    prefixResult: prefixResult
+                )
+            }
+        }
+
+        return nil
     }
 
     private func detectSIPState() async -> CapabilityState {
@@ -390,6 +415,33 @@ public struct MacCapabilityHomebrewPrefixes: Equatable, Sendable {
     }
 
     public static let macOSDefault = MacCapabilityHomebrewPrefixes()
+
+    fileprivate var executableCandidates: [URL] {
+        [appleSilicon, intel].map { $0.appendingPathComponent("bin").appendingPathComponent("brew") }
+    }
+}
+
+private struct ResolvedHomebrewCommand {
+    var executable: URL
+    var argumentPrefix: [String]
+    var prefixResult: CommandResult
+
+    func run(_ arguments: [String], runner: CommandRunner) async -> CommandResult {
+        do {
+            return try await runner.run(
+                executable: executable,
+                arguments: argumentPrefix + arguments,
+                environment: nil
+            )
+        } catch {
+            return CommandResult(
+                executable: executable.path,
+                arguments: argumentPrefix + arguments,
+                exitCode: 1,
+                standardError: String(describing: error)
+            )
+        }
+    }
 }
 
 private extension CommandResult {

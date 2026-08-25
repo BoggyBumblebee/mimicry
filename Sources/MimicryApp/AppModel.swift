@@ -471,19 +471,57 @@ struct PackageSectionSummary: Equatable, Sendable, Identifiable {
     var name: String
     var itemCount: Int
     var warningCount: Int
+    var items: [PackageItemSummary]
+    var warnings: [PackageWarningSummary]
 
-    init(name: String, itemCount: Int, warningCount: Int) {
+    init(
+        name: String,
+        itemCount: Int,
+        warningCount: Int,
+        items: [PackageItemSummary] = [],
+        warnings: [PackageWarningSummary] = []
+    ) {
         self.name = name
         self.itemCount = itemCount
         self.warningCount = warningCount
+        self.items = items
+        self.warnings = warnings
     }
 
     init(section: SnapshotSection) {
         self.init(
             name: section.displayName,
             itemCount: section.items.count,
-            warningCount: section.warnings.count
+            warningCount: section.warnings.count,
+            items: section.items.map(PackageItemSummary.init(item:)),
+            warnings: section.warnings.map(PackageWarningSummary.init(warning:))
         )
+    }
+}
+
+struct PackageItemSummary: Equatable, Sendable, Identifiable {
+    var id: String { key }
+    var key: String
+    var value: String
+    var classification: String
+    var applicability: String
+
+    init(item: SnapshotItem) {
+        key = item.key
+        value = item.value.renderedDescription
+        classification = item.classification.rawValue.readableIdentifier
+        applicability = item.applicability.rawValue.readableIdentifier
+    }
+}
+
+struct PackageWarningSummary: Equatable, Sendable, Identifiable {
+    var id: String { code }
+    var code: String
+    var message: String
+
+    init(warning: SnapshotWarning) {
+        code = warning.code
+        message = warning.message
     }
 }
 
@@ -995,5 +1033,34 @@ private extension Error {
     var readableMessage: String {
         let message = localizedDescription.trimmingCharacters(in: .whitespacesAndNewlines)
         return message.isEmpty ? String(describing: self) : message
+    }
+}
+
+private extension String {
+    var readableIdentifier: String {
+        var words: [String] = []
+        var current = ""
+
+        for character in self {
+            if character.isUppercase, !current.isEmpty {
+                words.append(current)
+                current = String(character)
+            } else if character == "-" || character == "_" {
+                if !current.isEmpty {
+                    words.append(current)
+                    current = ""
+                }
+            } else {
+                current.append(character)
+            }
+        }
+
+        if !current.isEmpty {
+            words.append(current)
+        }
+
+        return words
+            .map { $0.prefix(1).uppercased() + $0.dropFirst() }
+            .joined(separator: " ")
     }
 }

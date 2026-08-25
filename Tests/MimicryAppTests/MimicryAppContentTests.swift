@@ -61,22 +61,32 @@ final class MimicryAppContentTests: XCTestCase {
         XCTAssertTrue(AppSection.allCases.allSatisfy { !$0.systemImage.isEmpty })
     }
 
-    func testDashboardSummariesKeepSafetyBoundariesVisible() {
-        let summaries = CapabilitySummary.current
+    func testDashboardProvidersExplainCapturedAreas() {
+        let providers = ProviderSummary.current
 
-        XCTAssertEqual(summaries.map(\.title), ["Providers", "Apply", "Browsers", "Quality"])
-        XCTAssertTrue(summaries.contains { $0.detail.contains("Finder boolean and string preferences") })
-        XCTAssertTrue(summaries.contains { $0.detail.contains("HTML import artifact") })
-        XCTAssertTrue(summaries.contains { $0.detail.contains("zero open Sonar issues") })
+        XCTAssertEqual(providers.map(\.title), [
+            "Environment",
+            "Homebrew",
+            "App Store",
+            "Finder",
+            "Terminal",
+            "iCloud",
+            "Safari",
+            "Chrome",
+            "Firefox"
+        ])
+        XCTAssertTrue(providers.contains { $0.detail.contains("confirmed safe write path") })
+        XCTAssertTrue(providers.contains { $0.detail.contains("browser import handoff") })
+        XCTAssertFalse(providers.contains { $0.title == "Quality" })
     }
 
     func testWorkflowStepsMatchTrustedLoop() {
         XCTAssertEqual(WorkflowStep.current.map(\.title), [
-            "Capture",
-            "Inspect",
+            "Snapshot: Capture",
+            "Snapshot: Inspect",
             "Compare",
-            "Dry Run",
-            "Apply"
+            "Apply: Dry Run",
+            "Apply: Confirm"
         ])
         XCTAssertTrue(WorkflowStep.current.contains { $0.detail.contains("explicit confirmation") })
     }
@@ -204,6 +214,9 @@ final class MimicryAppContentTests: XCTestCase {
         XCTAssertEqual(expected.compatibility.managedCount, 1)
         XCTAssertEqual(expected.compatibility.unsupportedCount, 1)
         XCTAssertEqual(expected.sections.map(\.name), ["Environment", "Browser"])
+        XCTAssertEqual(expected.sections.first?.warnings.first?.message, "Review environment")
+        XCTAssertEqual(expected.sections.first?.items.map(\.key), ["safe", "review", "excluded"])
+        XCTAssertEqual(expected.sections.first?.items.first?.classification, "Safe Configuration")
     }
 
     func testOpenPackageReportsFailure() async {

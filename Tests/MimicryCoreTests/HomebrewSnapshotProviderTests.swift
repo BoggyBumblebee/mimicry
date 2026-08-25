@@ -39,6 +39,8 @@ final class HomebrewSnapshotProviderTests: XCTestCase {
 
     func testSnapshotWarnsWhenHomebrewIsUnavailable() async throws {
         let runner = FakeCommandRunner(results: [
+            CommandResult(executable: "", arguments: [], exitCode: 1, standardError: "brew not found"),
+            CommandResult(executable: "", arguments: [], exitCode: 1, standardError: "brew not found"),
             CommandResult(executable: "", arguments: [], exitCode: 1, standardError: "brew not found")
         ])
 
@@ -50,6 +52,41 @@ final class HomebrewSnapshotProviderTests: XCTestCase {
             SnapshotItem(key: "homebrew.installed", value: .bool(false))
         ])
         XCTAssertEqual(section.warnings.map(\.code), ["homebrew.unavailable"])
+    }
+
+    func testSnapshotFindsHomebrewAtStandardPrefixWhenShellPathMissesBrew() async throws {
+        let runner = FakeCommandRunner(results: [
+            CommandResult(executable: "", arguments: [], exitCode: 1, standardError: "brew not found"),
+            CommandResult(executable: "", arguments: [], exitCode: 0, standardOutput: "/opt/homebrew\n"),
+            CommandResult(executable: "", arguments: [], exitCode: 0, standardOutput: "Homebrew 5.0.0\n"),
+            CommandResult(executable: "", arguments: [], exitCode: 0, standardOutput: "homebrew/core\n"),
+            CommandResult(executable: "", arguments: [], exitCode: 0, standardOutput: "git 2.51.0\n"),
+            CommandResult(executable: "", arguments: [], exitCode: 0, standardOutput: "")
+        ])
+
+        let section = try await HomebrewSnapshotProvider().snapshot(
+            context: SnapshotContext(commandRunner: runner)
+        )
+        let invocations = await runner.invocations
+
+        XCTAssertTrue(section.items.contains(SnapshotItem(key: "homebrew.installed", value: .bool(true))))
+        XCTAssertTrue(section.items.contains(SnapshotItem(key: "homebrew.formula.git", value: .object(["name": "git", "version": "2.51.0"]))))
+        XCTAssertEqual(invocations.map(\.executable), [
+            "/usr/bin/env",
+            "/opt/homebrew/bin/brew",
+            "/opt/homebrew/bin/brew",
+            "/opt/homebrew/bin/brew",
+            "/opt/homebrew/bin/brew",
+            "/opt/homebrew/bin/brew"
+        ])
+        XCTAssertEqual(invocations.map(\.arguments), [
+            ["brew", "--prefix"],
+            ["--prefix"],
+            ["--version"],
+            ["tap"],
+            ["list", "--formula", "--versions"],
+            ["list", "--cask", "--versions"]
+        ])
     }
 
     func testSnapshotKeepsPartialInventoryWhenOneBrewCommandFails() async throws {
@@ -78,6 +115,8 @@ final class HomebrewSnapshotProviderTests: XCTestCase {
         )
         let unavailable = try await HomebrewSnapshotProvider().detect(
             context: DetectionContext(commandRunner: FakeCommandRunner(results: [
+                CommandResult(executable: "", arguments: [], exitCode: 1, standardError: "brew not found"),
+                CommandResult(executable: "", arguments: [], exitCode: 1, standardError: "brew not found"),
                 CommandResult(executable: "", arguments: [], exitCode: 1, standardError: "brew not found")
             ]))
         )
