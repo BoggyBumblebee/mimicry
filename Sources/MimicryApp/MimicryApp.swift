@@ -697,9 +697,9 @@ private struct PackageSectionDisclosure: View {
                     }
                 }
 
-                if !section.homebrewItemGroups.isEmpty {
+                if !section.itemGroups.isEmpty {
                     VStack(alignment: .leading, spacing: 8) {
-                        ForEach(section.homebrewItemGroups) { group in
+                        ForEach(section.itemGroups) { group in
                             PackageItemGroupDisclosure(group: group)
                         }
                     }

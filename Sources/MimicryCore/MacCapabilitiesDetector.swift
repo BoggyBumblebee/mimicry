@@ -120,7 +120,7 @@ public struct MacCapabilitiesDetector: Sendable {
         let commandLineTools = await commandSucceeds(paths.developerTools.xcodeSelect, ["-p"])
         let xcodeVersion = await detectXcodeVersion()
         let homebrew = await detectHomebrew()
-        let mas = await commandSucceeds(paths.shellTools.which, ["mas"])
+        let mas = await detectMAS()
         let sipState = await detectSIPState()
         let fileVaultState = await detectFileVaultState()
         let managementState = await detectManagementState()
@@ -220,6 +220,22 @@ public struct MacCapabilitiesDetector: Sendable {
         }
 
         return nil
+    }
+
+    private func detectMAS() async -> Bool {
+        let whichResult = await run(paths.shellTools.which, ["mas"])
+        if whichResult.exitCode == 0 {
+            return true
+        }
+
+        for candidate in paths.homebrewPrefixes.masExecutableCandidates {
+            let result = await run(candidate, ["version"])
+            if result.exitCode == 0 {
+                return true
+            }
+        }
+
+        return false
     }
 
     private func detectSIPState() async -> CapabilityState {
@@ -418,6 +434,10 @@ public struct MacCapabilityHomebrewPrefixes: Equatable, Sendable {
 
     fileprivate var executableCandidates: [URL] {
         [appleSilicon, intel].map { $0.appendingPathComponent("bin").appendingPathComponent("brew") }
+    }
+
+    fileprivate var masExecutableCandidates: [URL] {
+        [appleSilicon, intel].map { $0.appendingPathComponent("bin").appendingPathComponent("mas") }
     }
 }
 

@@ -31,6 +31,19 @@ final class CommandRunnerTests: XCTestCase {
         XCTAssertTrue(result.standardOutput.contains("MIMICRY_TEST_ENV=available"))
     }
 
+    func testProcessCommandRunnerTimesOutLongRunningCommand() async throws {
+        let runner = ProcessCommandRunner(timeout: 0.1)
+
+        let result = try await runner.run(
+            executable: URL(fileURLWithPath: "/bin/sleep"),
+            arguments: ["5"],
+            environment: nil
+        )
+
+        XCTAssertEqual(result.exitCode, 124)
+        XCTAssertTrue(result.standardError.contains("Command timed out after 0.1 seconds."))
+    }
+
     func testFakeCommandRunnerRecordsInvocationAndReturnsSeededResult() async throws {
         let runner = FakeCommandRunner(results: [
             CommandResult(

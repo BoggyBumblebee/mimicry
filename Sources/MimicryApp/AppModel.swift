@@ -502,7 +502,18 @@ struct PackageSectionSummary: Equatable, Sendable, Identifiable {
         )
     }
 
-    var homebrewItemGroups: [PackageItemGroupSummary] {
+    var itemGroups: [PackageItemGroupSummary] {
+        switch identifier {
+        case "homebrew":
+            homebrewItemGroups
+        case "app-store":
+            appStoreItemGroups
+        default:
+            []
+        }
+    }
+
+    private var homebrewItemGroups: [PackageItemGroupSummary] {
         guard identifier == "homebrew" else {
             return []
         }
@@ -527,6 +538,25 @@ struct PackageSectionSummary: Equatable, Sendable, Identifiable {
                 title: "Casks",
                 systemImage: "app.dashed",
                 items: items.filter { $0.key.hasPrefix("homebrew.cask.") }
+            )
+        ].filter { !$0.items.isEmpty }
+    }
+
+    private var appStoreItemGroups: [PackageItemGroupSummary] {
+        guard identifier == "app-store" else {
+            return []
+        }
+
+        return [
+            PackageItemGroupSummary(
+                title: "Config",
+                systemImage: "gearshape",
+                items: items.filter { !$0.key.isAppStoreApplicationItem }
+            ),
+            PackageItemGroupSummary(
+                title: "Applications",
+                systemImage: "app.badge",
+                items: items.filter { $0.key.isAppStoreApplicationItem }
             )
         ].filter { !$0.items.isEmpty }
     }
@@ -561,6 +591,10 @@ private extension String {
         hasPrefix("homebrew.tap.")
             || hasPrefix("homebrew.formula.")
             || hasPrefix("homebrew.cask.")
+    }
+
+    var isAppStoreApplicationItem: Bool {
+        hasPrefix("app-store.app.")
     }
 }
 

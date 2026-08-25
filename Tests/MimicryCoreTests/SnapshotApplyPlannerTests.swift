@@ -212,6 +212,32 @@ final class SnapshotApplyPlannerTests: XCTestCase {
         XCTAssertEqual(plan.actions.first?.providerIdentifier, "environment")
         XCTAssertEqual(plan.actions.first?.summary, "Environment metadata is informational and is not applied.")
     }
+
+    func testPlanRequiresUserActionForAppStoreApplicationInstalls() {
+        let reference = MimicrySnapshot.applyFixture(
+            sections: [
+                SnapshotSection(
+                    identifier: "app-store",
+                    displayName: "App Store",
+                    items: [
+                        SnapshotItem(
+                            key: "app-store.app.497799835",
+                            value: .object(["identifier": "497799835", "name": "Xcode", "version": "16.4"]),
+                            applicability: .userSpecific
+                        )
+                    ]
+                )
+            ]
+        )
+        let current = MimicrySnapshot.applyFixture(sections: [])
+
+        let plan = SnapshotApplyPlanner().plan(reference: reference, current: current)
+
+        XCTAssertEqual(plan.count(.requiresUserAction), 1)
+        XCTAssertEqual(plan.count(.configure), 0)
+        XCTAssertEqual(plan.actions.first?.providerIdentifier, "app-store")
+        XCTAssertEqual(plan.actions.first?.summary, "app-store.app.497799835: would add identifier=497799835, name=Xcode, version=16.4")
+    }
 }
 
 private extension MimicrySnapshot {

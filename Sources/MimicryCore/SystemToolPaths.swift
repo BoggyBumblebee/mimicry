@@ -24,15 +24,18 @@ public struct SnapshotProviderToolPaths: Equatable, Sendable {
     public var env: URL
     public var defaults: URL
     public var homebrewExecutableCandidates: [URL]
+    public var masExecutableCandidates: [URL]
 
     public init(
         env: URL? = nil,
         defaults: URL? = nil,
-        homebrewExecutableCandidates: [URL]? = nil
+        homebrewExecutableCandidates: [URL]? = nil,
+        masExecutableCandidates: [URL]? = nil
     ) {
         self.env = env ?? SystemToolPathFactory.usrBin("env")
         self.defaults = defaults ?? SystemToolPathFactory.usrBin("defaults")
         self.homebrewExecutableCandidates = homebrewExecutableCandidates ?? HomebrewToolPaths.macOSDefault.executableCandidates
+        self.masExecutableCandidates = masExecutableCandidates ?? HomebrewToolPaths.macOSDefault.masExecutableCandidates
     }
 
     public static let macOSDefault = SnapshotProviderToolPaths()
@@ -50,6 +53,10 @@ public struct HomebrewToolPaths: Equatable, Sendable {
 
     public var executableCandidates: [URL] {
         prefixes.map { $0.appendingPathComponent("bin").appendingPathComponent("brew") }
+    }
+
+    public var masExecutableCandidates: [URL] {
+        prefixes.map { $0.appendingPathComponent("bin").appendingPathComponent("mas") }
     }
 
     public static let macOSDefault = HomebrewToolPaths()

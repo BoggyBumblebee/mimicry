@@ -11,6 +11,8 @@ final class MimicrySnapshotBuilderTests: XCTestCase {
             CommandResult(executable: "", arguments: [], exitCode: 0, standardOutput: "homebrew/core\n"),
             CommandResult(executable: "", arguments: [], exitCode: 0, standardOutput: "swiftlint 0.59.0\n"),
             CommandResult(executable: "", arguments: [], exitCode: 0, standardOutput: ""),
+            CommandResult(executable: "", arguments: [], exitCode: 127, standardError: "mas not found"),
+            CommandResult(executable: "", arguments: [], exitCode: 127, standardError: "mas not found"),
             CommandResult(executable: "", arguments: [], exitCode: 127, standardError: "mas not found")
         ])
         let builder = MimicrySnapshotBuilder(

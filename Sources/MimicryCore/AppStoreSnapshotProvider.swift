@@ -12,27 +12,17 @@ public struct AppStoreSnapshotProvider: ConfigurationProvider {
     }
 
     public func detect(context: DetectionContext) async throws -> DetectionResult {
-        let result = try await context.commandRunner.run(
-            executable: paths.env,
-            arguments: ["mas", "version"],
-            environment: nil
-        )
+        let command = try await resolveMAS(context: context)
 
         return DetectionResult(
             providerIdentifier: identifier,
-            status: result.exitCode == 0 ? .success : .warning,
-            message: result.exitCode == 0 ? "`mas` is available." : "`mas` was not detected."
+            status: command == nil ? .warning : .success,
+            message: command == nil ? "`mas` was not detected." : "`mas` is available."
         )
     }
 
     public func snapshot(context: SnapshotContext) async throws -> SnapshotSection {
-        let result = try await context.commandRunner.run(
-            executable: paths.env,
-            arguments: ["mas", "list"],
-            environment: nil
-        )
-
-        guard result.exitCode == 0 else {
+        guard let masCommand = try await resolveMAS(context: context) else {
             return SnapshotSection(
                 identifier: identifier,
                 displayName: displayName,
@@ -48,7 +38,24 @@ public struct AppStoreSnapshotProvider: ConfigurationProvider {
             )
         }
 
-        let apps = parseMASList(result.standardOutput)
+        let listResult = try await masCommand.run(["list"], context: context)
+        guard listResult.exitCode == 0 else {
+            return SnapshotSection(
+                identifier: identifier,
+                displayName: displayName,
+                items: [
+                    SnapshotItem(key: "app-store.mas-available", value: .bool(true))
+                ],
+                warnings: [
+                    SnapshotWarning(
+                        code: "app-store.inventory-unavailable",
+                        message: "`mas list` did not complete successfully; App Store applications were not captured."
+                    )
+                ]
+            )
+        }
+
+        let apps = parseMASList(listResult.standardOutput)
         let items = [SnapshotItem(key: "app-store.mas-available", value: .bool(true))]
             + apps.map { app in
                 SnapshotItem(
@@ -58,7 +65,6 @@ public struct AppStoreSnapshotProvider: ConfigurationProvider {
                         "name": app.name,
                         "version": app.version
                     ]),
-                    classification: .userMustReview,
                     applicability: .userSpecific
                 )
             }
@@ -84,6 +90,57 @@ public struct AppStoreSnapshotProvider: ConfigurationProvider {
 
     public func apply(action: PlannedAction, context _: ApplyContext) async throws -> ApplyResult {
         ApplyResult(actionID: action.id, status: .skipped, message: "App Store apply is not implemented yet.")
+    }
+
+    private func resolveMAS(context: DetectionContext) async throws -> MASCommand? {
+        try await resolveMAS { executable, arguments in
+            try await context.commandRunner.run(
+                executable: executable,
+                arguments: arguments,
+                environment: nil
+            )
+        }
+    }
+
+    private func resolveMAS(context: SnapshotContext) async throws -> MASCommand? {
+        try await resolveMAS { executable, arguments in
+            try await context.commandRunner.run(
+                executable: executable,
+                arguments: arguments,
+                environment: nil
+            )
+        }
+    }
+
+    private func resolveMAS(
+        run: (URL, [String]) async throws -> CommandResult
+    ) async throws -> MASCommand? {
+        let shellResult = try await run(paths.env, ["mas", "version"])
+        if shellResult.exitCode == 0 {
+            return MASCommand(executable: paths.env, argumentPrefix: ["mas"])
+        }
+
+        for candidate in paths.masExecutableCandidates {
+            let result = try await run(candidate, ["version"])
+            if result.exitCode == 0 {
+                return MASCommand(executable: candidate, argumentPrefix: [])
+            }
+        }
+
+        return nil
+    }
+}
+
+private struct MASCommand {
+    var executable: URL
+    var argumentPrefix: [String]
+
+    func run(_ arguments: [String], context: SnapshotContext) async throws -> CommandResult {
+        try await context.commandRunner.run(
+            executable: executable,
+            arguments: argumentPrefix + arguments,
+            environment: nil
+        )
     }
 }
 

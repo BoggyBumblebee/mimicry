@@ -1,3 +1,4 @@
+import Darwin
 import Foundation
 
 public protocol CommandRunner: Sendable {
@@ -9,8 +10,10 @@ public protocol CommandRunner: Sendable {
 }
 
 public struct ProcessCommandRunner: CommandRunner {
-    public init() {
-        // Stateless runner; public initializer exposes it outside MimicryCore.
+    private let timeout: TimeInterval?
+
+    public init(timeout: TimeInterval? = 30) {
+        self.timeout = timeout
     }
 
     public func run(
@@ -31,18 +34,73 @@ public struct ProcessCommandRunner: CommandRunner {
             process.standardOutput = standardOutput
             process.standardError = standardError
 
+            let timeoutState = CommandTimeoutState()
             try process.run()
+            let timer = timeout.map { timeout in
+                let timer = DispatchSource.makeTimerSource()
+                timer.schedule(deadline: .now() + timeout)
+                timer.setEventHandler {
+                    timeoutState.markTimedOut()
+                    if process.isRunning {
+                        process.terminate()
+                        DispatchQueue.global().asyncAfter(deadline: .now() + 2) {
+                            if process.isRunning {
+                                kill(process.processIdentifier, SIGKILL)
+                            }
+                        }
+                    }
+                }
+                timer.resume()
+                return timer
+            }
             process.waitUntilExit()
+            timer?.cancel()
+
+            let didTimeOut = timeoutState.didTimeOut
 
             return CommandResult(
                 executable: executable.path,
                 arguments: arguments,
-                exitCode: process.terminationStatus,
+                exitCode: didTimeOut ? 124 : process.terminationStatus,
                 standardOutput: String(data: standardOutput.fileHandleForReading.readDataToEndOfFile(), encoding: .utf8) ?? "",
-                standardError: String(data: standardError.fileHandleForReading.readDataToEndOfFile(), encoding: .utf8) ?? ""
+                standardError: commandErrorOutput(
+                    String(data: standardError.fileHandleForReading.readDataToEndOfFile(), encoding: .utf8) ?? "",
+                    timedOutAfter: didTimeOut ? timeout : nil
+                )
             )
         }.value
     }
+}
+
+private final class CommandTimeoutState: @unchecked Sendable {
+    private let lock = NSLock()
+    private var timedOut = false
+
+    var didTimeOut: Bool {
+        lock.withLock {
+            timedOut
+        }
+    }
+
+    func markTimedOut() {
+        lock.withLock {
+            timedOut = true
+        }
+    }
+}
+
+private func commandErrorOutput(_ standardError: String, timedOutAfter timeout: TimeInterval?) -> String {
+    guard let timeout else {
+        return standardError
+    }
+
+    let timeoutMessage = "Command timed out after \(String(format: "%.1f", timeout)) seconds."
+    guard standardError.trimmedNilIfEmpty != nil else {
+        return timeoutMessage
+    }
+    return standardError.hasSuffix("\n")
+        ? standardError + timeoutMessage
+        : standardError + "\n" + timeoutMessage
 }
 
 public struct CommandResult: Codable, Equatable, Sendable {

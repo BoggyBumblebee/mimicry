@@ -93,6 +93,10 @@ public struct SnapshotApplyPlanner: Sendable {
     }
 
     private func actionKind(for section: SnapshotSectionDiff, item: SnapshotItemDiff) -> PlannedActionKind {
+        if isAppStoreApplication(section: section, item: item) {
+            return .requiresUserAction
+        }
+
         switch item.classification {
         case .safeConfiguration:
             return installLike(section: section, item: item) ? .install : .configure
@@ -103,6 +107,10 @@ public struct SnapshotApplyPlanner: Sendable {
         case .unsupported:
             return .blocked
         }
+    }
+
+    private func isAppStoreApplication(section: SnapshotSectionDiff, item: SnapshotItemDiff) -> Bool {
+        section.identifier == "app-store" && item.key.hasPrefix("app-store.app.")
     }
 
     private func installLike(section: SnapshotSectionDiff, item: SnapshotItemDiff) -> Bool {

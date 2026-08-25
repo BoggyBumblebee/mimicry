@@ -84,9 +84,9 @@ The Phase 2 snapshot slice keeps the same non-mutating boundary while producing 
 
 - environment metadata from detected capabilities
 - Homebrew taps, formulae, casks, prefix, version, and architecture
-- App Store applications through `mas list` when `mas` is available
+- App Store applications through `mas list` when `mas` can be resolved through the app environment or standard Homebrew install locations
 
-Missing Homebrew or `mas` produces warnings in the snapshot section instead of crashing the command.
+Missing Homebrew, missing `mas`, or failed/timed-out `mas list` inventory produces warnings in the snapshot section instead of crashing the command.
 
 ## Phase 3 Finder Slice
 

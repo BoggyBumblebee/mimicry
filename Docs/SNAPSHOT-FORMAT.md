@@ -37,7 +37,7 @@ Mimicry currently writes these initial sections into `snapshot.json`:
 
 - `environment`: macOS, architecture, hardware model, hostname, username, admin status, tool availability, and service states. This section is provenance and comparison metadata; apply planning skips it rather than applying machine- or user-specific identity to another Mac.
 - `homebrew`: Homebrew availability, prefix, architecture, version, taps, formulae, and casks.
-- `app-store`: `mas` availability and App Store application inventory when `mas list` is available.
+- `app-store`: `mas` availability and App Store application inventory when `mas list` completes successfully.
 - `finder`: stable Finder preferences captured with `defaults read`, including absent values where individual defaults are not set.
 - `terminal`: shell metadata and reviewed shell configuration file metadata, with secret-like files marked redacted and without storing shell file contents.
 - `icloud`: local iCloud status metadata, required-user-action state, and an explicit marker that authentication state is excluded.

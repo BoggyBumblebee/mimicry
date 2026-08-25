@@ -93,12 +93,38 @@ final class MimicryAppContentTests: XCTestCase {
             ]
         ))
 
-        XCTAssertEqual(section.homebrewItemGroups.map(\.title), ["Config", "Taps", "Formulae", "Casks"])
-        XCTAssertEqual(section.homebrewItemGroups.map { $0.items.map(\.key) }, [
+        XCTAssertEqual(section.itemGroups.map(\.title), ["Config", "Taps", "Formulae", "Casks"])
+        XCTAssertEqual(section.itemGroups.map { $0.items.map(\.key) }, [
             ["homebrew.installed", "homebrew.prefix"],
             ["homebrew.tap.homebrew/core"],
             ["homebrew.formula.git"],
             ["homebrew.cask.visual-studio-code"]
+        ])
+    }
+
+    func testAppStorePackageItemsAreGroupedForReview() {
+        let section = PackageSectionSummary(section: SnapshotSection(
+            identifier: "app-store",
+            displayName: "App Store",
+            items: [
+                SnapshotItem(key: "app-store.mas-available", value: .bool(true)),
+                SnapshotItem(
+                    key: "app-store.app.497799835",
+                    value: .object(["identifier": "497799835", "name": "Xcode", "version": "16.4"]),
+                    applicability: .userSpecific
+                ),
+                SnapshotItem(
+                    key: "app-store.app.1444383602",
+                    value: .object(["identifier": "1444383602", "name": "GoodNotes 6", "version": "6.6.0"]),
+                    applicability: .userSpecific
+                )
+            ]
+        ))
+
+        XCTAssertEqual(section.itemGroups.map(\.title), ["Config", "Applications"])
+        XCTAssertEqual(section.itemGroups.map { $0.items.map(\.key) }, [
+            ["app-store.mas-available"],
+            ["app-store.app.497799835", "app-store.app.1444383602"]
         ])
     }
 

@@ -58,6 +58,8 @@ final class MacCapabilitiesTests: XCTestCase {
             CommandResult(executable: "", arguments: [], exitCode: 1),
             CommandResult(executable: "", arguments: [], exitCode: 1),
             CommandResult(executable: "", arguments: [], exitCode: 1),
+            CommandResult(executable: "", arguments: [], exitCode: 1),
+            CommandResult(executable: "", arguments: [], exitCode: 1),
             CommandResult(executable: "", arguments: [], exitCode: 1)
         ])
         let detector = MacCapabilitiesDetector(
@@ -79,6 +81,8 @@ final class MacCapabilitiesTests: XCTestCase {
             "/custom/env",
             "/custom/env",
             "/custom/which",
+            "/custom/homebrew/bin/mas",
+            "/custom/local/bin/mas",
             "/custom/csrutil",
             "/custom/fdesetup",
             "/custom/profiles"
@@ -140,6 +144,8 @@ final class MacCapabilitiesTests: XCTestCase {
             CommandResult(executable: "", arguments: [], exitCode: 1, standardError: "brew not found\n"),
             CommandResult(executable: "", arguments: [], exitCode: 1, standardError: "brew not found\n"),
             CommandResult(executable: "", arguments: [], exitCode: 1, standardError: "mas not found\n"),
+            CommandResult(executable: "", arguments: [], exitCode: 1, standardError: "mas not found\n"),
+            CommandResult(executable: "", arguments: [], exitCode: 1, standardError: "mas not found\n"),
             CommandResult(executable: "", arguments: [], exitCode: 1, standardError: "csrutil unavailable\n"),
             CommandResult(executable: "", arguments: [], exitCode: 1, standardError: "fdesetup unavailable\n"),
             CommandResult(executable: "", arguments: [], exitCode: 1, standardError: "profiles unavailable\n")
@@ -177,6 +183,8 @@ final class MacCapabilitiesTests: XCTestCase {
             CommandResult(executable: "", arguments: [], exitCode: 0, standardOutput: "/opt/homebrew\n"),
             CommandResult(executable: "", arguments: [], exitCode: 0, standardOutput: "Homebrew 5.0.0\n"),
             CommandResult(executable: "", arguments: [], exitCode: 1, standardError: "mas not found\n"),
+            CommandResult(executable: "", arguments: [], exitCode: 1, standardError: "mas not found\n"),
+            CommandResult(executable: "", arguments: [], exitCode: 1, standardError: "mas not found\n"),
             CommandResult(executable: "", arguments: [], exitCode: 0, standardOutput: "System Integrity Protection status: enabled.\n"),
             CommandResult(executable: "", arguments: [], exitCode: 0, standardOutput: "FileVault is On.\n"),
             CommandResult(executable: "", arguments: [], exitCode: 0, standardOutput: "Enrolled via DEP: No\nMDM enrollment: No\n")
@@ -202,6 +210,34 @@ final class MacCapabilitiesTests: XCTestCase {
         )
         XCTAssertTrue(invocations.contains(CommandInvocation(executable: "/opt/homebrew/bin/brew", arguments: ["--prefix"])))
         XCTAssertTrue(invocations.contains(CommandInvocation(executable: "/opt/homebrew/bin/brew", arguments: ["--version"])))
+    }
+
+    func testDetectorFindsMASAtStandardPrefixWhenShellPathMissesMas() async {
+        let runner = FakeCommandRunner(results: [
+            CommandResult(executable: "", arguments: [], exitCode: 0, standardOutput: "staff everyone admin\n"),
+            CommandResult(executable: "", arguments: [], exitCode: 0, standardOutput: "/Applications/Xcode.app/Contents/Developer\n"),
+            CommandResult(executable: "", arguments: [], exitCode: 0, standardOutput: "Xcode 26.0\nBuild version 17A1\n"),
+            CommandResult(executable: "", arguments: [], exitCode: 0, standardOutput: "/opt/homebrew/bin/brew\n"),
+            CommandResult(executable: "", arguments: [], exitCode: 0, standardOutput: "/opt/homebrew\n"),
+            CommandResult(executable: "", arguments: [], exitCode: 0, standardOutput: "Homebrew 5.0.0\n"),
+            CommandResult(executable: "", arguments: [], exitCode: 1, standardError: "mas not found\n"),
+            CommandResult(executable: "", arguments: [], exitCode: 0, standardOutput: "7.0.0\n"),
+            CommandResult(executable: "", arguments: [], exitCode: 0, standardOutput: "System Integrity Protection status: enabled.\n"),
+            CommandResult(executable: "", arguments: [], exitCode: 0, standardOutput: "FileVault is On.\n"),
+            CommandResult(executable: "", arguments: [], exitCode: 0, standardOutput: "Enrolled via DEP: No\nMDM enrollment: No\n")
+        ])
+        let detector = MacCapabilitiesDetector(
+            runner: runner,
+            systemInfoProvider: {
+                MacCapabilitySystemInfo.testFixture()
+            }
+        )
+
+        let capabilities = await detector.detect()
+        let invocations = await runner.invocations
+
+        XCTAssertTrue(capabilities.hasMAS)
+        XCTAssertTrue(invocations.contains(CommandInvocation(executable: "/opt/homebrew/bin/mas", arguments: ["version"])))
     }
 
     func testDetectorTreatsThrownCommandProbesAsUnknownOrUnavailable() async {
