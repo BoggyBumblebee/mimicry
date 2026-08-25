@@ -509,8 +509,8 @@ struct PackageSectionSummary: Equatable, Sendable, Identifiable {
 
         return [
             PackageItemGroupSummary(
-                title: "Homebrew",
-                systemImage: "shippingbox",
+                title: "Config",
+                systemImage: "gearshape",
                 items: items.filter { !$0.key.isHomebrewChildItem }
             ),
             PackageItemGroupSummary(

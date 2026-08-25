@@ -93,7 +93,7 @@ final class MimicryAppContentTests: XCTestCase {
             ]
         ))
 
-        XCTAssertEqual(section.homebrewItemGroups.map(\.title), ["Homebrew", "Taps", "Formulae", "Casks"])
+        XCTAssertEqual(section.homebrewItemGroups.map(\.title), ["Config", "Taps", "Formulae", "Casks"])
         XCTAssertEqual(section.homebrewItemGroups.map { $0.items.map(\.key) }, [
             ["homebrew.installed", "homebrew.prefix"],
             ["homebrew.tap.homebrew/core"],
