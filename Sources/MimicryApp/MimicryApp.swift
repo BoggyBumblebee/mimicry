@@ -151,7 +151,7 @@ struct DetailView: View {
                 }
             }
             .padding(28)
-            .frame(maxWidth: 1120, alignment: .leading)
+            .frame(maxWidth: section == .snapshot ? .infinity : 1120, alignment: .leading)
         }
         .background(Color(nsColor: .windowBackgroundColor))
         .navigationTitle(section.title)
@@ -189,9 +189,7 @@ private struct SnapshotView: View {
         if shouldShowStartingContent {
             SnapshotStartingContentView()
         } else {
-            ContentPanel(title: "Package Review", systemImage: "doc.text.magnifyingglass") {
-                PackageReviewView(snapshotState: model.snapshotState, packageState: model.packageState)
-            }
+            PackageReviewView(snapshotState: model.snapshotState, packageState: model.packageState)
         }
     }
 
@@ -652,43 +650,167 @@ struct PackageInspectView: View {
         case .running:
             ProgressRow(title: "Opening package", detail: "Validating manifest and checksums.")
         case let .succeeded(summary):
-            VStack(alignment: .leading, spacing: 14) {
-                KeyValueList(rows: [
-                    KeyValueRow(label: "Package", value: summary.packageName),
-                    KeyValueRow(label: "Source", value: summary.source),
-                    KeyValueRow(label: "macOS", value: summary.macOSVersion),
-                    KeyValueRow(label: "Architecture", value: summary.architecture),
-                    KeyValueRow(label: "Sections", value: "\(summary.sectionCount)"),
-                    KeyValueRow(label: "Items", value: "\(summary.itemCount)"),
-                    KeyValueRow(label: "Warnings", value: "\(summary.warningCount)")
-                ])
-
-                LazyVGrid(columns: [GridItem(.adaptive(minimum: 130), spacing: 10)], spacing: 10) {
-                    CompactStatusTile(title: "Safe", value: "\(summary.safeCount)", systemImage: "checkmark.circle")
-                    CompactStatusTile(title: "Review", value: "\(summary.reviewCount)", systemImage: "person.crop.circle.badge.exclamationmark")
-                    CompactStatusTile(title: "Excluded", value: "\(summary.excludedCount)", systemImage: "forward.end.circle")
-                    CompactStatusTile(title: "Unsupported", value: "\(summary.unsupportedCount)", systemImage: "xmark.octagon")
-                }
-
-                CompatibilitySummaryView(summary: summary.compatibility)
-
-                if !summary.sections.isEmpty {
-                    Divider()
-                    VStack(alignment: .leading, spacing: 10) {
-                        ForEach(summary.sections.prefix(8)) { section in
-                            PackageSectionDisclosure(section: section)
-                        }
-                    }
-                }
-
-                Button {
-                    NSWorkspace.shared.activateFileViewerSelecting([summary.url])
-                } label: {
-                    Label("Reveal", systemImage: "folder")
-                }
-            }
+            PackageDocumentReview(summary: summary)
         case let .failed(message):
             FailureRow(title: "Package could not be opened", detail: message)
+        }
+    }
+}
+
+struct PackageDocumentReview: View {
+    var summary: AppPackageSummary
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: 18) {
+            PackageDocumentHeader(summary: summary)
+
+            PackageStatusStrip(summary: summary)
+
+            if !summary.sections.isEmpty {
+                PackageOutlineView(sections: summary.sections)
+            }
+
+            Button {
+                NSWorkspace.shared.activateFileViewerSelecting([summary.url])
+            } label: {
+                Label("Reveal in Finder", systemImage: "folder")
+            }
+        }
+        .frame(maxWidth: .infinity, alignment: .topLeading)
+    }
+}
+
+struct PackageDocumentHeader: View {
+    var summary: AppPackageSummary
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: 10) {
+            HStack(alignment: .firstTextBaseline, spacing: 12) {
+                Text(summary.packageName)
+                    .font(.title2.weight(.semibold))
+                    .lineLimit(1)
+                    .truncationMode(.middle)
+
+                Spacer()
+
+                Text(summary.warningCount == 1 ? "1 warning" : "\(summary.warningCount) warnings")
+                    .font(.callout.weight(.semibold))
+                    .foregroundStyle(summary.warningCount > 0 ? .orange : .secondary)
+            }
+
+            HStack(spacing: 6) {
+                PackageHeaderMetadata("Source", summary.source)
+                PackageHeaderSeparator()
+                PackageHeaderMetadata("macOS", summary.macOSVersion)
+                PackageHeaderSeparator()
+                PackageHeaderMetadata("Architecture", summary.architecture)
+                PackageHeaderSeparator()
+                PackageHeaderMetadata("Sections", "\(summary.sectionCount)")
+                PackageHeaderSeparator()
+                PackageHeaderMetadata("Items", "\(summary.itemCount)")
+            }
+            .font(.callout)
+            .foregroundStyle(.secondary)
+            .lineLimit(1)
+            .truncationMode(.middle)
+        }
+        .padding(.bottom, 2)
+    }
+}
+
+private struct PackageHeaderMetadata: View {
+    var label: String
+    var value: String
+
+    init(_ label: String, _ value: String) {
+        self.label = label
+        self.value = value
+    }
+
+    var body: some View {
+        Text("\(label): \(value)")
+            .lineLimit(1)
+            .truncationMode(.middle)
+    }
+}
+
+private struct PackageHeaderSeparator: View {
+    var body: some View {
+        Text("/")
+            .foregroundStyle(.tertiary)
+    }
+}
+
+struct PackageStatusStrip: View {
+    var summary: AppPackageSummary
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: 10) {
+            LazyVGrid(columns: columns, alignment: .leading, spacing: 8) {
+                PackageStatusPill(title: "Safe", value: summary.safeCount, systemImage: "checkmark.circle", tint: .green)
+                PackageStatusPill(title: "Review", value: summary.reviewCount, systemImage: "person.crop.circle.badge.exclamationmark", tint: .orange)
+                PackageStatusPill(title: "Excluded", value: summary.excludedCount, systemImage: "forward.end.circle", tint: .secondary)
+                PackageStatusPill(title: "Unsupported", value: summary.unsupportedCount, systemImage: "xmark.octagon", tint: .red)
+            }
+
+            if summary.compatibility.hasConstrainedItems {
+                LazyVGrid(columns: columns, alignment: .leading, spacing: 8) {
+                    PackageStatusPill(title: "Managed", value: summary.compatibility.managedCount, systemImage: "lock.shield", tint: .secondary)
+                    PackageStatusPill(title: "Machine", value: summary.compatibility.machineSpecificCount, systemImage: "desktopcomputer", tint: .blue)
+                    PackageStatusPill(title: "Hardware", value: summary.compatibility.hardwareSpecificCount, systemImage: "cpu", tint: .secondary)
+                    PackageStatusPill(title: "User", value: summary.compatibility.userSpecificCount, systemImage: "person.crop.circle", tint: .secondary)
+                    PackageStatusPill(title: "Unsupported", value: summary.compatibility.unsupportedCount, systemImage: "xmark.octagon", tint: .red)
+                }
+            }
+        }
+        .frame(maxWidth: .infinity, alignment: .leading)
+    }
+
+    private var columns: [GridItem] {
+        [GridItem(.adaptive(minimum: 112), spacing: 8, alignment: .leading)]
+    }
+}
+
+private struct PackageStatusPill: View {
+    var title: String
+    var value: Int
+    var systemImage: String
+    var tint: AppDisplayTint
+
+    var body: some View {
+        Label {
+            Text("\(title) \(value)")
+                .font(.callout)
+        } icon: {
+            Image(systemName: systemImage)
+                .font(.system(size: 14, weight: .medium))
+        }
+        .foregroundStyle(tint.color)
+        .padding(.horizontal, 10)
+        .padding(.vertical, 5)
+        .background(.quinary, in: Capsule())
+    }
+}
+
+struct PackageOutlineView: View {
+    var sections: [PackageSectionSummary]
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: 0) {
+            ForEach(sections) { section in
+                PackageSectionDisclosure(section: section)
+                if section.id != sections.last?.id {
+                    Divider()
+                        .padding(.leading, 34)
+                }
+            }
+        }
+        .padding(.horizontal, 8)
+        .padding(.vertical, 4)
+        .background(.background, in: RoundedRectangle(cornerRadius: 8))
+        .overlay {
+            RoundedRectangle(cornerRadius: 8)
+                .stroke(.separator, lineWidth: 1)
         }
     }
 }
@@ -721,14 +843,17 @@ private struct PackageSectionDisclosure: View {
                     }
                 }
             }
-            .padding(.top, 8)
-            .padding(.leading, 4)
+            .padding(.top, 10)
+            .padding(.bottom, 4)
+            .padding(.leading, 30)
         } label: {
             HStack(spacing: 10) {
                 Image(systemName: "rectangle.stack")
-                    .frame(width: 22)
+                    .font(.system(size: 17, weight: .medium))
+                    .frame(width: 24)
                     .foregroundStyle(.secondary)
                 Text(section.name)
+                    .font(.body.weight(.semibold))
                 Spacer()
                 Text("\(section.itemCount) items")
                     .foregroundStyle(.secondary)
@@ -737,7 +862,9 @@ private struct PackageSectionDisclosure: View {
                         .foregroundStyle(.orange)
                 }
             }
-            .font(.subheadline)
+            .font(.callout)
+            .padding(.vertical, 8)
+            .padding(.horizontal, 10)
         }
     }
 }
@@ -753,18 +880,22 @@ private struct PackageItemGroupDisclosure: View {
                 }
             }
             .padding(.top, 8)
-            .padding(.leading, 4)
+            .padding(.bottom, 2)
+            .padding(.leading, 30)
         } label: {
             HStack(spacing: 10) {
                 Image(systemName: group.systemImage)
-                    .frame(width: 22)
+                    .font(.system(size: 16, weight: .medium))
+                    .frame(width: 24)
                     .foregroundStyle(.secondary)
                 Text(group.title)
+                    .font(.body.weight(.medium))
                 Spacer()
                 Text("\(group.items.count) items")
                     .foregroundStyle(.secondary)
             }
-            .font(.subheadline)
+            .font(.callout)
+            .padding(.vertical, 6)
         }
     }
 }
@@ -775,18 +906,20 @@ private struct PackageWarningRow: View {
     var body: some View {
         HStack(alignment: .top, spacing: 10) {
             Image(systemName: "exclamationmark.triangle")
-                .frame(width: 22)
+                .font(.system(size: 16, weight: .medium))
+                .frame(width: 24)
                 .foregroundStyle(.orange)
-            VStack(alignment: .leading, spacing: 2) {
+            VStack(alignment: .leading, spacing: 3) {
                 Text(warning.code)
-                    .font(.caption.weight(.semibold))
+                    .font(.callout.weight(.semibold))
                 Text(warning.message)
-                    .font(.caption)
+                    .font(.callout)
                     .foregroundStyle(.secondary)
                     .fixedSize(horizontal: false, vertical: true)
             }
             Spacer()
         }
+        .padding(.vertical, 4)
     }
 }
 
@@ -798,27 +931,38 @@ private struct PackageItemRow: View {
 
         HStack(alignment: .top, spacing: 10) {
             Image(systemName: display.iconName)
-                .frame(width: 22)
+                .font(.system(size: 16, weight: .medium))
+                .frame(width: 24)
                 .foregroundStyle(display.tint.color)
-            VStack(alignment: .leading, spacing: 2) {
-                HStack(spacing: 8) {
-                    Text(item.key)
-                        .font(.caption.weight(.semibold))
-                    Text(display.statusLabel)
-                        .font(.caption)
-                        .foregroundStyle(display.tint.color)
+            VStack(alignment: .leading, spacing: 4) {
+                HStack(alignment: .firstTextBaseline, spacing: 12) {
+                    VStack(alignment: .leading, spacing: 3) {
+                        Text(item.key)
+                            .font(.callout.weight(.semibold))
+                            .lineLimit(1)
+                            .truncationMode(.middle)
+                        Text(item.value)
+                            .font(.callout)
+                            .foregroundStyle(.secondary)
+                            .lineLimit(2)
+                            .truncationMode(.middle)
+                    }
+
+                    Spacer(minLength: 16)
+
+                    VStack(alignment: .trailing, spacing: 3) {
+                        Text(display.statusLabel)
+                            .font(.callout.weight(.medium))
+                            .foregroundStyle(display.tint.color)
+                        Text(display.detailLabel)
+                            .font(.caption)
+                            .foregroundStyle(.secondary)
+                    }
+                    .multilineTextAlignment(.trailing)
                 }
-                Text(item.value)
-                    .font(.caption)
-                    .foregroundStyle(.secondary)
-                    .lineLimit(2)
-                    .truncationMode(.middle)
-                Text(display.detailLabel)
-                    .font(.caption2)
-                    .foregroundStyle(.tertiary)
             }
-            Spacer()
         }
+        .padding(.vertical, 5)
     }
 }
 

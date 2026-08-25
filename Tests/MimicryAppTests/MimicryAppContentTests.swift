@@ -60,6 +60,15 @@ final class MimicryAppContentTests: XCTestCase {
         assertRenders(PackageReviewView(snapshotState: .idle, packageState: .failed("Package failed")))
     }
 
+    func testPackageDocumentReviewComponentsRender() {
+        let summary = AppPackageSummary(package: Self.samplePackage())
+
+        assertRenders(PackageDocumentHeader(summary: summary))
+        assertRenders(PackageStatusStrip(summary: summary))
+        assertRenders(PackageOutlineView(sections: summary.sections))
+        assertRenders(PackageDocumentReview(summary: summary))
+    }
+
     func testCompareResultStateBranchesRender() {
         assertRenders(CompareResultView(state: .idle))
         assertRenders(CompareResultView(state: .running))
